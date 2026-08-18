@@ -109,6 +109,15 @@ tr:hover td{background:var(--surface2)}
   box-shadow:0 0 4px rgba(0,0,0,.8);transform:translateX(-50%);border-radius:2px}
 .gauge-ticks{position:relative;height:14px;margin-top:2px}
 .gauge-tick{position:absolute;transform:translateX(-50%);font-size:9px;color:var(--text2)}
+
+@keyframes blinkSlow{0%,100%{border-color:var(--amber);box-shadow:0 0 0 rgba(255,140,0,0)}50%{border-color:#ffb84d;box-shadow:0 0 12px rgba(255,140,0,.65)}}
+@keyframes blinkFast{0%,100%{border-color:var(--rose);box-shadow:0 0 0 rgba(248,81,73,0)}50%{border-color:#ff6b63;box-shadow:0 0 16px rgba(248,81,73,.85)}}
+@keyframes blinkTextSlow{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes blinkTextFast{0%,100%{opacity:1}50%{opacity:.3}}
+.blink-slow{animation:blinkSlow 1.8s ease-in-out infinite}
+.blink-fast{animation:blinkFast 0.7s ease-in-out infinite}
+.blink-text-slow{animation:blinkTextSlow 1.8s ease-in-out infinite}
+.blink-text-fast{animation:blinkTextFast 0.7s ease-in-out infinite}
 .tank-nums{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:5px}
 .status-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;margin-left:8px}
 .status-ok{background:rgba(34,197,94,.15);color:var(--green)}
@@ -350,67 +359,50 @@ function renderFuelTankDashboard_(tankRes) {
   const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
   const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
   const fullKey = keys.find(k => /^full/i.test(k));
-  const p80Key = keys.find(k => /80/.test(k));
-  const maxKey = keys.find(k => /max/i.test(k));
-  const minKey = keys.find(k => /min/i.test(k));
   const actualKey = keys.find(k => /actual/i.test(k));
   const ropKey = keys.find(k => /rop/i.test(k));
 
-  function statusOf(actual, min, max) {
-    if (actual === '' || actual === null || isNaN(actual)) return null;
-    if (min !== null && !isNaN(min) && actual <= min) return 'danger';
-    if (max !== null && !isNaN(max) && actual <= max) return 'warn';
+  const statusLabel = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด' };
+  const statusClass = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger' };
+  const blinkClass = { ok: '', warn: 'blink-slow', critical: 'blink-fast' };
+  const blinkTextClass = { ok: '', warn: 'blink-text-slow', critical: 'blink-text-fast' };
+
+  // เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-80% / ฟ้า80-100%)
+  //             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-80% / ฟ้า80-100%)
+  function statusOfPct(pct, isStore) {
+    if (pct === null) return 'ok';
+    if (isStore) return pct < 50 ? 'warn' : 'ok';
+    if (pct < 40) return 'critical';
+    if (pct < 50) return 'warn';
     return 'ok';
   }
-  const statusLabel = { ok: '🟢 ปกติ', warn: '🟡 เฝ้าระวัง', danger: '🔴 ต้องสั่งเติมด่วน' };
-  const statusClass = { ok: 'status-ok', warn: 'status-warn', danger: 'status-danger' };
 
-  // สร้างเกจหลายสีตามค่าจริงของแต่ละถัง (Min/Max/80%/Full) + marker บอกตำแหน่งคงเหลือปัจจุบัน
-  const ZONE_COLORS = ['#f85149', '#ff8c00', '#22c55e', '#2563eb']; // แดง-เหลือง-เขียว-น้ำเงิน เรียงจากน้อยไปมาก
-  function buildGaugeHtml_(full, min, max, p80, actual) {
+  function buildGaugeHtml_(full, actual, isStore) {
     if (!full || full <= 0) return '<div class="tank-sub">ไม่มีข้อมูลความจุ (Full Capacity)</div>';
-    const pct = v => (isNaN(v) ? null : Math.max(0, Math.min(100, (v / full) * 100)));
-    let bounds = [0, pct(min), pct(max), pct(p80), 100]
-      .filter(v => v !== null && !isNaN(v))
-      .sort((a, b) => a - b);
-    // ตัดค่าซ้ำ (กรณี Max control = 80% Capacity พอดี)
-    bounds = bounds.filter((v, i) => i === 0 || v - bounds[i - 1] > 0.01);
-    if (bounds[0] > 0) bounds.unshift(0);
-    if (bounds[bounds.length - 1] < 100) bounds.push(100);
+    const zones = isStore
+      ? [{ w: 50, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }]
+      : [{ w: 40, color: '#f85149' }, { w: 10, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }];
+    const ticks = isStore ? [50, 80] : [40, 50, 80];
 
-    let zonesHtml = '', ticksHtml = '';
-    for (let i = 0; i < bounds.length - 1; i++) {
-      const width = bounds[i + 1] - bounds[i];
-      const color = ZONE_COLORS[Math.min(i, ZONE_COLORS.length - 1)];
-      zonesHtml += `<div class="gauge-zone" style="width:${width}%;background:${color}"></div>`;
-    }
-    bounds.forEach(b => {
-      if (b === 0 || b === 100) return; // ไม่ต้องโชว์ tick หัวท้าย กันรก
-      ticksHtml += `<span class="gauge-tick" style="left:${b}%">${Math.round(b)}%</span>`;
-    });
+    const zonesHtml = zones.map(z => `<div class="gauge-zone" style="width:${z.w}%;background:${z.color}"></div>`).join('');
+    const ticksHtml = ticks.map(t => `<span class="gauge-tick" style="left:${t}%">${t}%</span>`).join('');
+    const pct = isNaN(actual) ? null : Math.max(0, Math.min(100, (actual / full) * 100));
+    const marker = pct !== null ? `<div class="gauge-marker" style="left:${pct}%" title="คงเหลือ ${actual}"></div>` : '';
 
-    const actualPct = pct(actual);
-    const marker = actualPct !== null ? `<div class="gauge-marker" style="left:${actualPct}%" title="คงเหลือ ${actual}"></div>` : '';
-
-    return `<div class="gauge-wrap">
-        <div class="gauge-zones">${zonesHtml}</div>
-        ${marker}
-      </div>
+    return `<div class="gauge-wrap"><div class="gauge-zones">${zonesHtml}</div>${marker}</div>
       <div class="gauge-ticks">${ticksHtml}</div>`;
   }
 
-  function tankCardHtml(r, big) {
+  function tankCardHtml(r, big, isStore) {
     const full = parseFloat(r[fullKey]) || 0;
-    const p80 = p80Key ? parseFloat(r[p80Key]) : NaN;
     const actual = parseFloat(r[actualKey]);
-    const min = parseFloat(r[minKey]);
-    const max = parseFloat(r[maxKey]);
-    const st = statusOf(actual, min, max) || 'ok';
+    const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
+    const st = statusOfPct(pct, isStore);
     const name = r[nameKey] || r[buildingKey] || '-';
-    return `<div class="tank-card${big ? ' big' : ''}">
-      <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
+    return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}">
+      <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
-      ${buildGaugeHtml_(full, min, max, p80, actual)}
+      ${buildGaugeHtml_(full, actual, isStore)}
       <div class="tank-nums" style="margin-top:6px">
         <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
         <span>เต็ม: ${full.toLocaleString()} L</span>
@@ -421,34 +413,48 @@ function renderFuelTankDashboard_(tankRes) {
 
   const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
   const genTanks = rows.filter(r => !storeTanks.includes(r));
-  const alerts = rows.filter(r => {
+
+  function rowStatus_(r, isStore) {
+    const full = parseFloat(r[fullKey]) || 0;
     const actual = parseFloat(r[actualKey]);
-    const min = parseFloat(r[minKey]);
-    return !isNaN(actual) && !isNaN(min) && actual <= min;
-  }).sort((a, b) => (parseFloat(a[actualKey]) - parseFloat(a[minKey])) - (parseFloat(b[actualKey]) - parseFloat(b[minKey])));
+    const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
+    return { st: statusOfPct(pct, isStore), full, actual, pct };
+  }
+
+  const alerts = rows.map(r => {
+    const isStore = storeTanks.includes(r);
+    const info = rowStatus_(r, isStore);
+    return { r, isStore, ...info };
+  }).filter(x => x.st !== 'ok').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
 
   let html = '<div class="card"><div class="card-title">🛢️ สถานะถังเชื้อเพลิงหลัก (Store Tank)</div>';
   html += storeTanks.length
-    ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true)).join('')}</div>`
+    ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true, true)).join('')}</div>`
     : '<div class="loading">ไม่พบ Store Tank</div>';
   html += '</div>';
 
   if (alerts.length) {
-    html += `<div class="card"><div class="card-title" style="color:var(--rose)">🔴 ต้องสั่งซื้อเชื้อเพลิงด่วน (${alerts.length} รายการ)</div>`;
-    alerts.forEach(r => {
-      const actual = parseFloat(r[actualKey]) || 0;
-      const min = parseFloat(r[minKey]) || 0;
-      html += `<div class="alert-row">
-        <div><b>${escHtml(r[buildingKey] || '')}</b> — ${escHtml(r[nameKey] || '')}</div>
-        <div style="font-size:12px">คงเหลือ ${actual.toLocaleString()} L / ขั้นต่ำ ${min.toLocaleString()} L
-          <span style="color:var(--rose)">(ขาด ${(min - actual).toLocaleString()} L)</span></div>
+    const hasCritical = alerts.some(a => a.st === 'critical');
+    const titleBlink = hasCritical ? 'blink-text-fast' : 'blink-text-slow';
+    html += `<div class="card ${hasCritical ? 'blink-fast' : 'blink-slow'}">
+      <div class="card-title ${titleBlink}" style="color:var(--rose)">🔴 ต้องสั่งซื้อเชื้อเพลิงด่วน (${alerts.length} รายการ)</div>`;
+    alerts.forEach(a => {
+      const target = a.full * 0.8; // เป้าหมายเติมกลับไปที่ 80% ของความจุ
+      const need = Math.max(0, target - a.actual);
+      const rowBlink = a.st === 'critical' ? 'blink-text-fast' : 'blink-text-slow';
+      html += `<div class="alert-row ${a.st === 'critical' ? 'blink-fast' : 'blink-slow'}">
+        <div><b>${escHtml(a.r[buildingKey] || '')}</b> — ${escHtml(a.r[nameKey] || '')}
+          <span class="status-badge ${a.st === 'critical' ? 'status-danger' : 'status-warn'} ${rowBlink}">
+            ${a.st === 'critical' ? '🔴 ด่วนที่สุด' : '🟠 ต้องสั่งเติม'}</span></div>
+        <div style="font-size:12px">คงเหลือ ${a.actual.toLocaleString()} L (${a.pct.toFixed(0)}%)
+          <span style="color:var(--rose)"> · ต้องเติมประมาณ ${need.toLocaleString(undefined,{maximumFractionDigits:0})} L ให้ถึง 80%</span></div>
       </div>`;
     });
     html += '</div>';
   }
 
   html += `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิงแยกตามเครื่อง</div>
-    <div class="grid-cards">${genTanks.map(r => tankCardHtml(r, false)).join('')}</div></div>`;
+    <div class="grid-cards">${genTanks.map(r => tankCardHtml(r, false, false)).join('')}</div></div>`;
 
   return html;
 }
@@ -513,7 +519,7 @@ function drawRepairChart_() {
   // จัดกลุ่มค่าใช้จ่ายรวมตาม Building x ประเภท (stacked bar) เพื่อวิเคราะห์ง่าย
   const buildings = [...new Set(filtered.map(r => r[buildingKey]).filter(Boolean))];
   const types = [...new Set(rows.map(r => r[typeKey]).filter(Boolean))];
-  const colors = { 'งานบำรุงรักษา-MA': '#ff8c00', 'งานซ่อมแซม-CM': '#f85149', 'งานบำรุงรักษา-PM': '#22c55e' };
+  const colors = { 'งานบำรุงรักษา-MA': '#a78bfa', 'งานซ่อมแซม-CM': '#f85149', 'งานบำรุงรักษา-PM': '#22c55e' };
   const fallbackColors = ['#ff8c00', '#f85149', '#22c55e', '#a78bfa', '#2563eb'];
 
   const datasets = types.map((t, i) => ({
