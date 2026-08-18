@@ -506,6 +506,14 @@ function renderPmForm(period, presetGenerator) {
           return;
         }
 
+        // ช่องวันที่ -> ใช้ date picker ของ browser แล้วแปลงเป็น dd/mm/yyyy ตอนบันทึก
+        if (/^date$|วันที่/i.test(h.trim()) && !/update|start|stop|finish/i.test(h)) {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+            <input type="date" id="${inputId}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
+          return;
+        }
+
         const analysis = analyzeField_(h);
         if (analysis.type === 'select') {
           formHtml += `<div class="field"><label>${escHtml(h)}</label>
@@ -565,8 +573,14 @@ function submitPm(period) {
   const values = {};
   let buildingCode = '';
   fields.forEach(inp => {
-    values[inp.dataset.header] = inp.value;
-    if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = inp.value;
+    let val = inp.value;
+    if (inp.dataset.type === 'date' && val) {
+      // input type=date ให้ค่าแบบ yyyy-mm-dd -> แปลงเป็น dd/mm/yyyy ให้ตรงกับข้อมูลเดิมในชีต
+      const [y, m, d] = val.split('-');
+      val = `${d}/${m}/${y}`;
+    }
+    values[inp.dataset.header] = val;
+    if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = val;
   });
   const msg = document.getElementById('pmSubmitMsg');
   msg.textContent = 'กำลังบันทึก...';
@@ -586,7 +600,12 @@ function renderFuel() {
     const headers = (res.headers || []).filter(h => h && h !== 'No.');
     let formHtml = `<div class="card"><div class="card-title">บันทึกใหม่</div><div class="form-grid" id="fuelFormGrid">`;
     headers.forEach(h => {
-      formHtml += `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}"></div>`;
+      if (/^date$|วันที่/i.test(h.trim())) {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        formHtml += `<div class="field"><label>${escHtml(h)}</label><input type="date" id="ff_${cssId(h)}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
+      } else {
+        formHtml += `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}"></div>`;
+      }
     });
     formHtml += `</div><button class="btn" style="margin-top:14px" onclick="submitFuel()">✓ บันทึก</button>
       <span id="fuelSubmitMsg" style="margin-left:12px;font-size:12px"></span></div>`;
@@ -610,8 +629,13 @@ function submitFuel() {
   const inputs = grid.querySelectorAll('input');
   const values = {}; let buildingCode = '';
   inputs.forEach(inp => {
-    values[inp.dataset.header] = inp.value;
-    if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = inp.value;
+    let val = inp.value;
+    if (inp.dataset.type === 'date' && val) {
+      const [y, m, d] = val.split('-');
+      val = `${d}/${m}/${y}`;
+    }
+    values[inp.dataset.header] = val;
+    if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = val;
   });
   const msg = document.getElementById('fuelSubmitMsg');
   msg.textContent = 'กำลังบันทึก...';
