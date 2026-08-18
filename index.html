@@ -102,6 +102,13 @@ tr:hover td{background:var(--surface2)}
 .tank-sub{font-size:11px;color:var(--text2);margin-top:2px}
 .tank-bar-bg{background:var(--surface);border-radius:6px;height:10px;margin-top:10px;overflow:hidden;border:1px solid var(--border)}
 .tank-bar-fill{height:100%;border-radius:6px;transition:.3s}
+.gauge-wrap{position:relative;height:14px;margin-top:12px}
+.gauge-zones{display:flex;height:100%;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.gauge-zone{height:100%}
+.gauge-marker{position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff;
+  box-shadow:0 0 4px rgba(0,0,0,.8);transform:translateX(-50%);border-radius:2px}
+.gauge-ticks{position:relative;height:14px;margin-top:2px}
+.gauge-tick{position:absolute;transform:translateX(-50%);font-size:9px;color:var(--text2)}
 .tank-nums{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:5px}
 .status-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;margin-left:8px}
 .status-ok{background:rgba(34,197,94,.15);color:var(--green)}
@@ -343,6 +350,7 @@ function renderFuelTankDashboard_(tankRes) {
   const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
   const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
   const fullKey = keys.find(k => /^full/i.test(k));
+  const p80Key = keys.find(k => /80/.test(k));
   const maxKey = keys.find(k => /max/i.test(k));
   const minKey = keys.find(k => /min/i.test(k));
   const actualKey = keys.find(k => /actual/i.test(k));
@@ -357,20 +365,53 @@ function renderFuelTankDashboard_(tankRes) {
   const statusLabel = { ok: '🟢 ปกติ', warn: '🟡 เฝ้าระวัง', danger: '🔴 ต้องสั่งเติมด่วน' };
   const statusClass = { ok: 'status-ok', warn: 'status-warn', danger: 'status-danger' };
 
+  // สร้างเกจหลายสีตามค่าจริงของแต่ละถัง (Min/Max/80%/Full) + marker บอกตำแหน่งคงเหลือปัจจุบัน
+  const ZONE_COLORS = ['#f85149', '#ff8c00', '#22c55e', '#2563eb']; // แดง-เหลือง-เขียว-น้ำเงิน เรียงจากน้อยไปมาก
+  function buildGaugeHtml_(full, min, max, p80, actual) {
+    if (!full || full <= 0) return '<div class="tank-sub">ไม่มีข้อมูลความจุ (Full Capacity)</div>';
+    const pct = v => (isNaN(v) ? null : Math.max(0, Math.min(100, (v / full) * 100)));
+    let bounds = [0, pct(min), pct(max), pct(p80), 100]
+      .filter(v => v !== null && !isNaN(v))
+      .sort((a, b) => a - b);
+    // ตัดค่าซ้ำ (กรณี Max control = 80% Capacity พอดี)
+    bounds = bounds.filter((v, i) => i === 0 || v - bounds[i - 1] > 0.01);
+    if (bounds[0] > 0) bounds.unshift(0);
+    if (bounds[bounds.length - 1] < 100) bounds.push(100);
+
+    let zonesHtml = '', ticksHtml = '';
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const width = bounds[i + 1] - bounds[i];
+      const color = ZONE_COLORS[Math.min(i, ZONE_COLORS.length - 1)];
+      zonesHtml += `<div class="gauge-zone" style="width:${width}%;background:${color}"></div>`;
+    }
+    bounds.forEach(b => {
+      if (b === 0 || b === 100) return; // ไม่ต้องโชว์ tick หัวท้าย กันรก
+      ticksHtml += `<span class="gauge-tick" style="left:${b}%">${Math.round(b)}%</span>`;
+    });
+
+    const actualPct = pct(actual);
+    const marker = actualPct !== null ? `<div class="gauge-marker" style="left:${actualPct}%" title="คงเหลือ ${actual}"></div>` : '';
+
+    return `<div class="gauge-wrap">
+        <div class="gauge-zones">${zonesHtml}</div>
+        ${marker}
+      </div>
+      <div class="gauge-ticks">${ticksHtml}</div>`;
+  }
+
   function tankCardHtml(r, big) {
     const full = parseFloat(r[fullKey]) || 0;
+    const p80 = p80Key ? parseFloat(r[p80Key]) : NaN;
     const actual = parseFloat(r[actualKey]);
     const min = parseFloat(r[minKey]);
     const max = parseFloat(r[maxKey]);
-    const pct = full > 0 && !isNaN(actual) ? Math.max(0, Math.min(100, (actual / full) * 100)) : 0;
     const st = statusOf(actual, min, max) || 'ok';
-    const barColor = st === 'danger' ? 'var(--rose)' : (st === 'warn' ? 'var(--amber)' : 'var(--green)');
     const name = r[nameKey] || r[buildingKey] || '-';
     return `<div class="tank-card${big ? ' big' : ''}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
-      <div class="tank-bar-bg"><div class="tank-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
-      <div class="tank-nums">
+      ${buildGaugeHtml_(full, min, max, p80, actual)}
+      <div class="tank-nums" style="margin-top:6px">
         <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
         <span>เต็ม: ${full.toLocaleString()} L</span>
       </div>
