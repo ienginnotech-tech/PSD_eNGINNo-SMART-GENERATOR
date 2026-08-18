@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>PSD eNGINNo | SMART GENERATOR</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
   --bg:#0d0d0f;--sidebar:#111115;--sidebar2:#16161b;
@@ -94,6 +95,24 @@ tr:hover td{background:var(--surface2)}
 .loading{color:var(--text2);font-size:12px;padding:20px;text-align:center}
 
 #qrReader{width:100%;max-width:400px;margin:0 auto}
+
+.tank-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:10px}
+.tank-card.big{padding:18px}
+.tank-name{font-weight:700;font-size:13px}
+.tank-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.tank-bar-bg{background:var(--surface);border-radius:6px;height:10px;margin-top:10px;overflow:hidden;border:1px solid var(--border)}
+.tank-bar-fill{height:100%;border-radius:6px;transition:.3s}
+.tank-nums{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:5px}
+.status-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;margin-left:8px}
+.status-ok{background:rgba(34,197,94,.15);color:var(--green)}
+.status-warn{background:rgba(255,140,0,.15);color:var(--amber)}
+.status-danger{background:rgba(248,81,73,.15);color:var(--rose)}
+.alert-row{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;
+  padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filter-bar select{padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--r);color:var(--text);font-size:12px;min-width:140px}
+.chart-wrap{position:relative;height:320px}
 
 @media (max-width:820px){
   .sidebar{transform:translateX(-100%);transition:.2s;width:220px}
@@ -271,14 +290,23 @@ function pageHeader(title, desc) {
 }
 
 /* ---------- DASHBOARD ---------- */
+let DASH_REPAIR_ROWS = [];
+let DASH_COST_CHART = null;
+
 function renderDashboard() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('Dashboard', 'ภาพรวมระบบเครื่องกำเนิดไฟฟ้า') + '<div class="loading">กำลังโหลด...</div>';
-  callApi('getGeneratorMaster', {}).then(res => {
-    const rows = res.rows || [];
-    el.innerHTML = pageHeader('Dashboard', 'ภาพรวมระบบเครื่องกำเนิดไฟฟ้า') + `
+
+  Promise.all([
+    callApi('getGeneratorMaster', {}),
+    callApi('getFuelTankStatus', {}),
+    callApi('getRepairHistory', {})
+  ]).then(([genRes, tankRes, repairRes]) => {
+    const genRows = genRes.rows || [];
+
+    let html = pageHeader('Dashboard', 'ภาพรวมระบบเครื่องกำเนิดไฟฟ้า') + `
       <div class="grid-cards">
-        <div class="stat-card"><div class="stat-num">${rows.length}</div><div class="stat-label">เครื่องกำเนิดไฟฟ้าทั้งหมด</div></div>
+        <div class="stat-card"><div class="stat-num">${genRows.length}</div><div class="stat-label">เครื่องกำเนิดไฟฟ้าทั้งหมด</div></div>
         <div class="stat-card"><div class="stat-num">${SESSION.buildingCode}</div><div class="stat-label">อาคารที่เข้าถึงได้</div></div>
         <div class="stat-card"><div class="stat-num">${SESSION.role}</div><div class="stat-label">สิทธิ์การใช้งาน</div></div>
       </div>
@@ -288,6 +316,189 @@ function renderDashboard() {
         <button class="btn small ghost" onclick="navigate('generators')" style="margin-left:8px">⚙️ ดูทะเบียนเครื่อง</button>
         <button class="btn small ghost" onclick="navigate('fuel')" style="margin-left:8px">⛽ บันทึกเชื้อเพลิง</button>
       </div>`;
+
+    /* ---- FUEL TANK STATUS ---- */
+    html += renderFuelTankDashboard_(tankRes);
+
+    /* ---- REPAIR COST CHART ---- */
+    html += renderRepairCostSection_(repairRes);
+
+    el.innerHTML = html;
+
+    if (window.Chart && repairRes.ok && (repairRes.rows || []).length) {
+      DASH_REPAIR_ROWS = repairRes.rows;
+      initRepairFilters_(repairRes.headers || []);
+      drawRepairChart_();
+    }
+  });
+}
+
+/* ---- Fuel Tank section ---- */
+function renderFuelTankDashboard_(tankRes) {
+  if (!tankRes.ok || !(tankRes.rows || []).length) {
+    return `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิง</div><div class="loading">ไม่มีข้อมูล</div></div>`;
+  }
+  const rows = tankRes.rows;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
+  const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
+  const fullKey = keys.find(k => /^full/i.test(k));
+  const maxKey = keys.find(k => /max/i.test(k));
+  const minKey = keys.find(k => /min/i.test(k));
+  const actualKey = keys.find(k => /actual/i.test(k));
+  const ropKey = keys.find(k => /rop/i.test(k));
+
+  function statusOf(actual, min, max) {
+    if (actual === '' || actual === null || isNaN(actual)) return null;
+    if (min !== null && !isNaN(min) && actual <= min) return 'danger';
+    if (max !== null && !isNaN(max) && actual <= max) return 'warn';
+    return 'ok';
+  }
+  const statusLabel = { ok: '🟢 ปกติ', warn: '🟡 เฝ้าระวัง', danger: '🔴 ต้องสั่งเติมด่วน' };
+  const statusClass = { ok: 'status-ok', warn: 'status-warn', danger: 'status-danger' };
+
+  function tankCardHtml(r, big) {
+    const full = parseFloat(r[fullKey]) || 0;
+    const actual = parseFloat(r[actualKey]);
+    const min = parseFloat(r[minKey]);
+    const max = parseFloat(r[maxKey]);
+    const pct = full > 0 && !isNaN(actual) ? Math.max(0, Math.min(100, (actual / full) * 100)) : 0;
+    const st = statusOf(actual, min, max) || 'ok';
+    const barColor = st === 'danger' ? 'var(--rose)' : (st === 'warn' ? 'var(--amber)' : 'var(--green)');
+    const name = r[nameKey] || r[buildingKey] || '-';
+    return `<div class="tank-card${big ? ' big' : ''}">
+      <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
+      <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
+      <div class="tank-bar-bg"><div class="tank-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="tank-nums">
+        <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
+        <span>เต็ม: ${full.toLocaleString()} L</span>
+      </div>
+      ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+    </div>`;
+  }
+
+  const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
+  const genTanks = rows.filter(r => !storeTanks.includes(r));
+  const alerts = rows.filter(r => {
+    const actual = parseFloat(r[actualKey]);
+    const min = parseFloat(r[minKey]);
+    return !isNaN(actual) && !isNaN(min) && actual <= min;
+  }).sort((a, b) => (parseFloat(a[actualKey]) - parseFloat(a[minKey])) - (parseFloat(b[actualKey]) - parseFloat(b[minKey])));
+
+  let html = '<div class="card"><div class="card-title">🛢️ สถานะถังเชื้อเพลิงหลัก (Store Tank)</div>';
+  html += storeTanks.length
+    ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true)).join('')}</div>`
+    : '<div class="loading">ไม่พบ Store Tank</div>';
+  html += '</div>';
+
+  if (alerts.length) {
+    html += `<div class="card"><div class="card-title" style="color:var(--rose)">🔴 ต้องสั่งซื้อเชื้อเพลิงด่วน (${alerts.length} รายการ)</div>`;
+    alerts.forEach(r => {
+      const actual = parseFloat(r[actualKey]) || 0;
+      const min = parseFloat(r[minKey]) || 0;
+      html += `<div class="alert-row">
+        <div><b>${escHtml(r[buildingKey] || '')}</b> — ${escHtml(r[nameKey] || '')}</div>
+        <div style="font-size:12px">คงเหลือ ${actual.toLocaleString()} L / ขั้นต่ำ ${min.toLocaleString()} L
+          <span style="color:var(--rose)">(ขาด ${(min - actual).toLocaleString()} L)</span></div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  html += `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิงแยกตามเครื่อง</div>
+    <div class="grid-cards">${genTanks.map(r => tankCardHtml(r, false)).join('')}</div></div>`;
+
+  return html;
+}
+
+/* ---- Repair cost chart section ---- */
+function renderRepairCostSection_(repairRes) {
+  if (!repairRes.ok || !(repairRes.rows || []).length) {
+    return `<div class="card"><div class="card-title">ค่าใช้จ่ายซ่อมบำรุง</div><div class="loading">ไม่มีข้อมูล</div></div>`;
+  }
+  return `<div class="card">
+    <div class="card-title">📊 วิเคราะห์ค่าใช้จ่ายซ่อมบำรุง</div>
+    <div class="filter-bar">
+      <select id="filterBuilding" onchange="drawRepairChart_()"></select>
+      <select id="filterType" onchange="drawRepairChart_()"></select>
+    </div>
+    <div id="costSummary" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+    <div class="chart-wrap"><canvas id="repairCostChart"></canvas></div>
+  </div>`;
+}
+
+function initRepairFilters_(headers) {
+  const rows = DASH_REPAIR_ROWS;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
+  const typeKey = keys.find(k => /ประเภท|^type/i.test(k));
+
+  const buildings = [...new Set(rows.map(r => r[buildingKey]).filter(Boolean))];
+  const types = [...new Set(rows.map(r => r[typeKey]).filter(Boolean))];
+
+  const bSel = document.getElementById('filterBuilding');
+  const tSel = document.getElementById('filterType');
+  bSel.innerHTML = '<option value="">ทุกอาคาร</option>' + buildings.map(b => `<option value="${escAttr(b)}">${escHtml(b)}</option>`).join('');
+  tSel.innerHTML = '<option value="">ทุกประเภทงาน</option>' + types.map(t => `<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('');
+
+  bSel.dataset.key = buildingKey;
+  tSel.dataset.key = typeKey;
+}
+
+function parseCost_(v) {
+  if (v === '' || v === null || v === undefined) return 0;
+  const n = parseFloat(String(v).replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function drawRepairChart_() {
+  const rows = DASH_REPAIR_ROWS;
+  if (!rows.length || !window.Chart) return;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
+  const typeKey = keys.find(k => /ประเภท|^type/i.test(k));
+  const costKey = keys.find(k => /ราคา|cost|price/i.test(k));
+
+  const bSel = document.getElementById('filterBuilding');
+  const tSel = document.getElementById('filterType');
+  const bVal = bSel ? bSel.value : '';
+  const tVal = tSel ? tSel.value : '';
+
+  let filtered = rows;
+  if (bVal) filtered = filtered.filter(r => r[buildingKey] === bVal);
+  if (tVal) filtered = filtered.filter(r => r[typeKey] === tVal);
+
+  // จัดกลุ่มค่าใช้จ่ายรวมตาม Building x ประเภท (stacked bar) เพื่อวิเคราะห์ง่าย
+  const buildings = [...new Set(filtered.map(r => r[buildingKey]).filter(Boolean))];
+  const types = [...new Set(rows.map(r => r[typeKey]).filter(Boolean))];
+  const colors = { 'งานบำรุงรักษา-MA': '#ff8c00', 'งานซ่อมแซม-CM': '#f85149', 'งานบำรุงรักษา-PM': '#22c55e' };
+  const fallbackColors = ['#ff8c00', '#f85149', '#22c55e', '#a78bfa', '#2563eb'];
+
+  const datasets = types.map((t, i) => ({
+    label: t,
+    data: buildings.map(b => filtered.filter(r => r[buildingKey] === b && r[typeKey] === t)
+      .reduce((sum, r) => sum + parseCost_(r[costKey]), 0)),
+    backgroundColor: colors[t] || fallbackColors[i % fallbackColors.length]
+  }));
+
+  const totalCost = filtered.reduce((sum, r) => sum + parseCost_(r[costKey]), 0);
+  document.getElementById('costSummary').textContent =
+    `รวม ${filtered.length} รายการ · ค่าใช้จ่ายรวม ${totalCost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} บาท`;
+
+  const ctx = document.getElementById('repairCostChart').getContext('2d');
+  if (DASH_COST_CHART) DASH_COST_CHART.destroy();
+  DASH_COST_CHART = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: buildings, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: '#8a8580' }, grid: { color: 'rgba(255,140,0,.08)' } },
+        y: { stacked: true, ticks: { color: '#8a8580' }, grid: { color: 'rgba(255,140,0,.08)' } }
+      },
+      plugins: { legend: { labels: { color: '#f0ede8' } } }
+    }
   });
 }
 
