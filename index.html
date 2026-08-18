@@ -672,7 +672,7 @@ function renderRepair() {
   el.innerHTML = pageHeader('ประวัติซ่อมบำรุง', 'MA / CM / PM History') + '<div class="loading">กำลังโหลด...</div>';
   callApi('getRepairHistory', {}).then(res => {
     if (!res.ok) { el.innerHTML += `<div class="err-msg">${res.error}</div>`; return; }
-    const headers = (res.headers || []).slice(0, 12);
+    const headers = res.headers || [];
     let tableHtml = '<div class="card"><div class="table-wrap"><table><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${escHtml(h)}</th>`);
     tableHtml += '</tr></thead><tbody>';
