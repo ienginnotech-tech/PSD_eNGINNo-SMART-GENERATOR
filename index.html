@@ -536,11 +536,20 @@ function renderDashboard() {
 
 /* ---- Fuel Tank section ---- */
 function scrollToTank_(code) {
-  const el = document.getElementById('tankcard_' + cssId(code));
-  if (!el) { alert('ไม่พบการ์ดของ ' + code + ' ในหน้านี้ (อาจต้องเลื่อนหาด้วยตาเอง หรือเครื่องไม่มีการ์ดแสดงคงเหลือ)'); return; }
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.classList.add('flash-highlight');
-  setTimeout(() => el.classList.remove('flash-highlight'), 1700);
+  // ค้นหาแบบ "มีคำนี้อยู่ในรหัส" แทนการเทียบตรงเป๊ะ เพราะหมายเหตุอาจพิมพ์แบบย่อ
+  // (เช่น "GEN-08") แต่รหัสจริงมี prefix อาคารนำหน้า (เช่น "BITEC-II-GEN-08")
+  const candidates = Array.from(document.querySelectorAll('[data-code]'));
+  const target = candidates.find(el => {
+    const c = (el.dataset.code || '').toUpperCase();
+    return c && c.includes(code.toUpperCase());
+  });
+  if (!target) {
+    alert('ไม่พบการ์ดของ ' + code + ' ในหน้านี้ (อาจต้องเลื่อนหาด้วยตาเอง หรือเครื่องไม่มีการ์ดแสดงคงเหลือ)');
+    return;
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.classList.add('flash-highlight');
+  setTimeout(() => target.classList.remove('flash-highlight'), 1700);
 }
 
 function renderFuelTankDashboard_(tankRes) {
@@ -601,7 +610,7 @@ function renderFuelTankDashboard_(tankRes) {
       const linksHtml = refCodes.length
         ? refCodes.map(c => `<span class="shared-link" onclick="scrollToTank_('${escAttr(c)}')">${escHtml(c)}</span>`).join(', ')
         : '';
-      return `<div class="tank-card${big ? ' big' : ''}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}">
+      return `<div class="tank-card${big ? ' big' : ''}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
         <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass.shared}">${statusLabel.shared}</span></div>
         <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
         <div class="shared-note">📌 ${escHtml(note)}${linksHtml ? '<br>ดูถังจริงที่: ' + linksHtml : ''}</div>
@@ -610,7 +619,7 @@ function renderFuelTankDashboard_(tankRes) {
 
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, isStore);
-    return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}">
+    return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
       ${buildGaugeHtml_(full, actual, isStore)}
