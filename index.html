@@ -273,7 +273,8 @@ let CURRENT_PAGE = 'dashboard';
 function callApi(action, data) {
   data = data || {};
   if (SESSION) data.session = SESSION;
-  return new Promise((resolve, reject) => {
+
+  const apiPromise = new Promise((resolve, reject) => {
     if (API_URL) {
       fetch(API_URL, {
         method: 'POST',
@@ -288,6 +289,14 @@ function callApi(action, data) {
       reject(new Error('ไม่พบช่องทางเชื่อมต่อ backend (ตั้งค่า API_URL)'));
     }
   });
+
+  // Safety net: ถ้าไม่มีการตอบกลับภายใน 25 วินาที (เช่น หลายอาคารเข้าใช้พร้อมกันจน Apps Script คิวยาว)
+  // ให้ reject ออกมาแสดง error แทนที่จะค้างหน้า "กำลังโหลด..." ไปตลอด
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('การเชื่อมต่อใช้เวลานานเกินไป (อาจมีผู้ใช้งานพร้อมกันหลายคน) กรุณาลองใหม่')), 25000);
+  });
+
+  return Promise.race([apiPromise, timeoutPromise]);
 }
 
 /* ---------- LOGIN ---------- */
@@ -478,11 +487,13 @@ function renderDashboard() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('Dashboard', 'ภาพรวมระบบเครื่องกำเนิดไฟฟ้า') + '<div class="loading">กำลังโหลด...</div>';
 
-  Promise.all([
-    callApi('getGeneratorMaster', {}),
-    callApi('getFuelTankStatus', {}),
-    callApi('getRepairHistory', {})
-  ]).then(([genRes, tankRes, repairRes]) => {
+  callApi('getDashboardBundle', {}).then(bundle => {
+    if (!bundle.ok) {
+      el.innerHTML = pageHeader('Dashboard', '') + `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(bundle.error || 'ไม่ทราบสาเหตุ')}
+        <button class="btn small ghost" onclick="renderDashboard()" style="margin-left:8px">ลองใหม่</button></div>`;
+      return;
+    }
+    const genRes = bundle.gen, tankRes = bundle.tank, repairRes = bundle.repair;
     const genRows = genRes.rows || [];
 
     let html = pageHeader('Dashboard', 'ภาพรวมระบบเครื่องกำเนิดไฟฟ้า') + `
@@ -511,6 +522,9 @@ function renderDashboard() {
       initRepairFilters_(repairRes.headers || []);
       drawRepairChart_();
     }
+  }).catch(err => {
+    el.innerHTML = pageHeader('Dashboard', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderDashboard()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -799,6 +813,9 @@ function renderGenerators() {
       const code = codeKey ? r[codeKey] : '';
       if (code) renderQrImage('qr_' + cssId(code), code, 110);
     });
+  }).catch(err => {
+    el.innerHTML = pageHeader('ทะเบียนเครื่องกำเนิดไฟฟ้า', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderGenerators()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -858,13 +875,18 @@ function renderQrScan() {
 function renderPmFromScan(genId) {
   genId = genId || PRELOAD_GENID;
   if (!genId) { navigate('qrscan'); return; }
+  document.getElementById('pageContent').innerHTML = pageHeader('กำลังโหลด...', '') + '<div class="loading">กำลังค้นหาเครื่อง ' + escHtml(genId) + '...</div>';
   callApi('getGeneratorById', { code: genId }).then(res => {
     if (!res.ok) {
       document.getElementById('pageContent').innerHTML = pageHeader('ไม่พบเครื่อง', genId) +
-        `<div class="card err-msg">${res.error}</div>`;
+        `<div class="card err-msg">${escHtml(res.error)}</div>`;
       return;
     }
     renderPmForm('weekly', res.generator);
+  }).catch(err => {
+    document.getElementById('pageContent').innerHTML = pageHeader('เกิดข้อผิดพลาด', '') +
+      `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+        <button class="btn small ghost" onclick="renderPmFromScan('${escAttr(genId)}')" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -913,11 +935,9 @@ function renderPmForm(period, presetGenerator) {
   const title = period === 'annual' ? 'PM รายปี / Load Test (NFPA110)' : 'PM รายสัปดาห์';
   el.innerHTML = pageHeader(title, 'บันทึกผลตรวจสอบเครื่องกำเนิดไฟฟ้า') + '<div class="loading">กำลังโหลดฟอร์ม...</div>';
 
-  Promise.all([
-    callApi('getPmRecords', { period, limit: 10 }),
-    callApi('getGeneratorMaster', {})
-  ]).then(([res, genRes]) => {
-    if (!res.ok) { el.innerHTML += `<div class="err-msg">${res.error}</div>`; return; }
+  callApi('getPmFormBundle', { period, limit: 10 }).then(bundle => {
+    if (!bundle.ok) { el.innerHTML = pageHeader(title, '') + `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(bundle.error || 'ไม่ทราบสาเหตุ')} <button class="btn small ghost" onclick="renderPmForm('${period}')" style="margin-left:8px">ลองใหม่</button></div>`; return; }
+    const res = bundle.pm, genRes = bundle.gen;
     const headers = (res.headers || []).filter(h => h);
     const skipPatterns = /^(Result|ผลลัพท์)/i; // ซ่อนคอลัมน์ผลลัพท์อัตโนมัติ (เติมค่า 1 อัตโนมัติ ไม่ต้องกรอก)
 
@@ -1027,6 +1047,9 @@ function renderPmForm(period, presetGenerator) {
     tableHtml += '</tbody></table></div></div>';
 
     el.innerHTML = pageHeader(title, 'บันทึกผลตรวจสอบเครื่องกำเนิดไฟฟ้า') + formHtml + tableHtml;
+  }).catch(err => {
+    el.innerHTML = pageHeader(title, '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderPmForm('${period}')" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -1076,12 +1099,13 @@ function renderFuel() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + '<div class="loading">กำลังโหลด...</div>';
 
-  Promise.all([
-    callApi('getFuelLog', { limit: 15 }),
-    callApi('getGeneratorMaster', {}),
-    callApi('getFuelTankStatus', {})
-  ]).then(([res, genRes, tankRes]) => {
-    if (!res.ok) { el.innerHTML += `<div class="err-msg">${res.error}</div>`; return; }
+  callApi('getFuelFormBundle', { limit: 15 }).then(bundle => {
+    if (!bundle.ok) {
+      el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', '') + `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(bundle.error || 'ไม่ทราบสาเหตุ')}
+        <button class="btn small ghost" onclick="renderFuel()" style="margin-left:8px">ลองใหม่</button></div>`;
+      return;
+    }
+    const res = bundle.fuel, genRes = bundle.gen, tankRes = bundle.tank;
     const headers = (res.headers || []).filter(h => h && h !== 'No.');
 
     // สร้าง TANK_MAP จาก Re-Order Point_Fuel (ข้อมูลคงเหลือจริงล่าสุด) key ด้วย Code
@@ -1172,6 +1196,9 @@ function renderFuel() {
     tableHtml += '</tbody></table></div></div>';
 
     el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + formHtml + tableHtml;
+  }).catch(err => {
+    el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderFuel()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -1220,7 +1247,7 @@ function renderFuelTank() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', 'Full / 80% / Min / Actual Remain / ROP') + '<div class="loading">กำลังโหลด...</div>';
   callApi('getFuelTankStatus', {}).then(res => {
-    if (!res.ok) { el.innerHTML += `<div class="err-msg">${res.error}</div>`; return; }
+    if (!res.ok) { el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const headers = res.headers || [];
     let tableHtml = '<div class="card"><div class="table-wrap"><table><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${escHtml(h)}</th>`);
@@ -1232,6 +1259,9 @@ function renderFuelTank() {
     });
     tableHtml += '</tbody></table></div></div>';
     el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', headers.length + ' คอลัมน์') + tableHtml;
+  }).catch(err => {
+    el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderFuelTank()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -1240,7 +1270,7 @@ function renderRepair() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('ประวัติซ่อมบำรุง', 'MA / CM / PM History') + '<div class="loading">กำลังโหลด...</div>';
   callApi('getRepairHistory', {}).then(res => {
-    if (!res.ok) { el.innerHTML += `<div class="err-msg">${res.error}</div>`; return; }
+    if (!res.ok) { el.innerHTML = pageHeader('ประวัติซ่อมบำรุง', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const headers = res.headers || [];
     let tableHtml = '<div class="card"><div class="table-wrap"><table><thead><tr>';
     headers.forEach(h => tableHtml += `<th>${escHtml(h)}</th>`);
@@ -1252,6 +1282,9 @@ function renderRepair() {
     });
     tableHtml += '</tbody></table></div></div>';
     el.innerHTML = pageHeader('ประวัติซ่อมบำรุง', (res.rows||[]).length + ' รายการ') + tableHtml;
+  }).catch(err => {
+    el.innerHTML = pageHeader('ประวัติซ่อมบำรุง', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderRepair()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
@@ -1394,7 +1427,7 @@ function renderUserAuthorize() {
   el.innerHTML = pageHeader('🗝️ User Authorize', 'อนุมัติ / แก้ไข / ยกเลิกสิทธิ์ผู้ใช้งานแต่ละอาคาร') + '<div class="loading">กำลังโหลด...</div>';
 
   callApi('listUsers', {}).then(res => {
-    if (!res.ok) { el.innerHTML = pageHeader('🗝️ User Authorize', '') + `<div class="card err-msg">${res.error}</div>`; return; }
+    if (!res.ok) { el.innerHTML = pageHeader('🗝️ User Authorize', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const rows = res.rows || [];
     const statusLabel = { pending: '🟠 รออนุมัติ', approved: '🟢 อนุมัติแล้ว', rejected: '🔴 ปฏิเสธ/ยกเลิก' };
     const statusClassMap = { pending: 'user-status-pending', approved: 'user-status-approved', rejected: 'user-status-rejected' };
@@ -1421,6 +1454,9 @@ function renderUserAuthorize() {
     html += '</tbody></table></div></div>';
     html += `<div id="editUserPanel"></div>`;
     el.innerHTML = html;
+  }).catch(err => {
+    el.innerHTML = pageHeader('🗝️ User Authorize', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+      <button class="btn small ghost" onclick="renderUserAuthorize()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
