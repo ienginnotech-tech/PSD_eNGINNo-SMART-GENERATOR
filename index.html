@@ -29,6 +29,8 @@ button,input,select,textarea{font-family:var(--font)}
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .login-card{background:var(--surface);border:1px solid var(--border2);border-radius:8px;
   padding:32px;max-width:380px;width:100%;box-shadow:var(--shadow)}
+.login-header{text-align:center;margin-bottom:20px}
+.login-logo-icon{margin:0 auto 14px;font-size:90px;line-height:1}
 .login-logo{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:.5px;margin-bottom:2px}
 .login-sub{font-size:12px;color:var(--text2);margin-bottom:24px}
 .field{margin-bottom:14px}
@@ -36,6 +38,11 @@ button,input,select,textarea{font-family:var(--font)}
 .field input,.field select{width:100%;padding:10px 12px;background:var(--surface2);
   border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px}
 .field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:40px}
+.pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
+  cursor:pointer;font-size:16px;color:var(--text2);padding:4px}
+.pw-toggle:hover{color:var(--accent)}
 .btn{background:var(--accent);color:#0d0d0f;border:none;padding:11px 18px;border-radius:var(--r);
   font-weight:700;cursor:pointer;font-size:13px;letter-spacing:.3px;transition:.15s}
 .btn:hover{background:var(--accent2)}
@@ -207,15 +214,21 @@ tr:hover td{background:var(--surface2)}
 <!-- ============ LOGIN SCREEN ============ -->
 <div id="loginScreen">
   <div class="login-card" id="loginCard">
-    <div class="login-logo">PSD eNGINNo</div>
-    <div class="login-sub">SMART GENERATOR MANAGEMENT SYSTEM</div>
+    <div class="login-header">
+      <div class="login-logo-icon">⚡</div>
+      <div class="login-logo">PSD eNGINNo</div>
+      <div class="login-sub">SMART GENERATOR MANAGEMENT SYSTEM</div>
+    </div>
     <div class="field">
       <label>ชื่อผู้ใช้ (Username)</label>
       <input id="loginModuleKey" placeholder="ชื่อผู้ใช้" autocomplete="off">
     </div>
     <div class="field">
       <label>Password</label>
-      <input id="loginPassword" type="password" placeholder="รหัสผ่าน">
+      <div class="pw-wrap">
+        <input id="loginPassword" type="password" placeholder="รหัสผ่าน">
+        <button type="button" class="pw-toggle" onclick="togglePw_('loginPassword', this)">👁️</button>
+      </div>
     </div>
     <button class="btn block" onclick="doLogin()">เข้าสู่ระบบ</button>
     <div id="loginErr" class="err-msg hidden"></div>
@@ -223,8 +236,11 @@ tr:hover td{background:var(--surface2)}
   </div>
 
   <div class="login-card hidden" id="registerCard">
-    <div class="login-logo">ลงทะเบียนผู้ใช้ใหม่</div>
-    <div class="login-sub">กรอกข้อมูลแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</div>
+    <div class="login-header">
+      <div class="login-logo-icon">📝</div>
+      <div class="login-logo">ลงทะเบียนผู้ใช้ใหม่</div>
+      <div class="login-sub">กรอกข้อมูลแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</div>
+    </div>
     <div class="field">
       <label>ชื่อ-นามสกุล / ชื่อที่แสดง</label>
       <input id="regDisplayName" placeholder="เช่น สมชาย ใจดี">
@@ -249,7 +265,10 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="field">
       <label>Password</label>
-      <input id="regPassword" type="password" placeholder="อย่างน้อย 4 ตัวอักษร">
+      <div class="pw-wrap">
+        <input id="regPassword" type="password" placeholder="อย่างน้อย 4 ตัวอักษร">
+        <button type="button" class="pw-toggle" onclick="togglePw_('regPassword', this)">👁️</button>
+      </div>
     </div>
     <button class="btn block" onclick="doRegister()">ส่งคำขอลงทะเบียน</button>
     <div id="registerErr" class="err-msg hidden"></div>
@@ -327,6 +346,12 @@ function callApi(action, data) {
 }
 
 /* ---------- LOGIN ---------- */
+function togglePw_(inputId, btnEl) {
+  const inp = document.getElementById(inputId);
+  if (inp.type === 'password') { inp.type = 'text'; btnEl.textContent = '🙈'; }
+  else { inp.type = 'password'; btnEl.textContent = '👁️'; }
+}
+
 function doLogin() {
   const moduleKey = document.getElementById('loginModuleKey').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -1755,7 +1780,12 @@ function editUser_(row, displayName, moduleKey, buildingCode, role) {
           <option value="viewer" ${role==='viewer'?'selected':''}>viewer</option>
           <option value="admin" ${role==='admin'?'selected':''}>admin</option>
         </select></div>
-      <div class="field"><label>Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label><input id="eu_password" type="password"></div>
+      <div class="field"><label>Password ใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label>
+        <div class="pw-wrap">
+          <input id="eu_password" type="password">
+          <button type="button" class="pw-toggle" onclick="togglePw_('eu_password', this)">👁️</button>
+        </div>
+      </div>
     </div>
     <button class="btn small" style="margin-top:10px" onclick="saveEditUser_(${row})">💾 บันทึก</button>
     <button class="btn small ghost" style="margin-top:10px" onclick="document.getElementById('editUserPanel').innerHTML=''">ยกเลิก</button>
