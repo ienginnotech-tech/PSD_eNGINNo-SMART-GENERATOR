@@ -427,7 +427,7 @@ function renderFuelTankDashboard_(tankRes) {
     return { r, isStore, ...info };
   }).filter(x => x.st !== 'ok').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
 
-  let html = '<div class="card"><div class="card-title">🛢️ สถานะถังเชื้อเพลิงหลัก (Store Tank)</div>';
+  let html = '<div class="card"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
   html += storeTanks.length
     ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true, true)).join('')}</div>`
     : '<div class="loading">ไม่พบ Store Tank</div>';
@@ -453,7 +453,7 @@ function renderFuelTankDashboard_(tankRes) {
     html += '</div>';
   }
 
-  html += `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิงแยกตามเครื่อง</div>
+  html += `<div class="card"><div class="card-title">สถานะถังน้ำมันประจำเครื่อง (DAY TANK)</div>
     <div class="grid-cards">${genTanks.map(r => tankCardHtml(r, false, false)).join('')}</div></div>`;
 
   return html;
@@ -469,9 +469,15 @@ function renderRepairCostSection_(repairRes) {
     <div class="filter-bar">
       <select id="filterBuilding" onchange="drawRepairChart_()"></select>
       <select id="filterType" onchange="drawRepairChart_()"></select>
+      <select id="filterYear" onchange="drawRepairChart_()"></select>
+      <select id="filterMonth" onchange="drawRepairChart_()"></select>
+      <select id="filterCompany" onchange="drawRepairChart_()"></select>
+      <input id="filterDetail" placeholder="🔍 ค้นหารายละเอียด/อุปกรณ์ที่เปลี่ยน..." style="flex:1;min-width:220px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px" oninput="drawRepairChart_()">
     </div>
     <div id="costSummary" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
     <div class="chart-wrap"><canvas id="repairCostChart"></canvas></div>
+    <div class="card-title" style="margin-top:18px">รายละเอียดงานซ่อมบำรุง</div>
+    <div class="table-wrap" id="repairDetailTable"></div>
   </div>`;
 }
 
@@ -480,17 +486,42 @@ function initRepairFilters_(headers) {
   const keys = Object.keys(rows[0]).filter(k => k !== '_row');
   const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
   const typeKey = keys.find(k => /ประเภท|^type/i.test(k));
+  const dateKey = keys.find(k => /^date$|วันที่/i.test(k));
+  const companyKey = keys.find(k => /ผู้ดำเนินการ|ผู้รับเหมา|ผู้ให้บริการซ่อม/i.test(k));
 
   const buildings = [...new Set(rows.map(r => r[buildingKey]).filter(Boolean))];
   const types = [...new Set(rows.map(r => r[typeKey]).filter(Boolean))];
+  const companies = [...new Set(rows.map(r => r[companyKey]).filter(Boolean))];
+  const years = [...new Set(rows.map(r => parseThaiDate_(r[dateKey])).filter(Boolean).map(d => d.y))].sort((a,b) => b - a);
 
   const bSel = document.getElementById('filterBuilding');
   const tSel = document.getElementById('filterType');
+  const ySel = document.getElementById('filterYear');
+  const mSel = document.getElementById('filterMonth');
+  const cSel = document.getElementById('filterCompany');
+
   bSel.innerHTML = '<option value="">ทุกอาคาร</option>' + buildings.map(b => `<option value="${escAttr(b)}">${escHtml(b)}</option>`).join('');
   tSel.innerHTML = '<option value="">ทุกประเภทงาน</option>' + types.map(t => `<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('');
+  ySel.innerHTML = '<option value="">ทุกปี</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  const monthNames = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  mSel.innerHTML = '<option value="">ทุกเดือน</option>' + monthNames.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+  cSel.innerHTML = '<option value="">ทุกบริษัทผู้ให้บริการ</option>' + companies.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
 
   bSel.dataset.key = buildingKey;
   tSel.dataset.key = typeKey;
+  ySel.dataset.key = dateKey;
+  mSel.dataset.key = dateKey;
+  cSel.dataset.key = companyKey;
+}
+
+// รองรับวันที่ฟอร์แมต dd/mm/yyyy (ตามที่ formatCellValue_ ฝั่ง backend แปลงให้) -> {d,m,y}
+function parseThaiDate_(str) {
+  if (!str) return null;
+  const parts = String(str).split(/[\/\-]/);
+  if (parts.length < 3) return null;
+  const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
+  if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
+  return { d, m, y };
 }
 
 function parseCost_(v) {
@@ -506,15 +537,24 @@ function drawRepairChart_() {
   const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
   const typeKey = keys.find(k => /ประเภท|^type/i.test(k));
   const costKey = keys.find(k => /ราคา|cost|price/i.test(k));
+  const dateKey = keys.find(k => /^date$|วันที่/i.test(k));
+  const companyKey = keys.find(k => /ผู้ดำเนินการ|ผู้รับเหมา|ผู้ให้บริการซ่อม/i.test(k));
+  const detailKey = keys.find(k => /รายละเอียด|detail/i.test(k));
 
-  const bSel = document.getElementById('filterBuilding');
-  const tSel = document.getElementById('filterType');
-  const bVal = bSel ? bSel.value : '';
-  const tVal = tSel ? tSel.value : '';
+  const bVal = document.getElementById('filterBuilding')?.value || '';
+  const tVal = document.getElementById('filterType')?.value || '';
+  const yVal = document.getElementById('filterYear')?.value || '';
+  const mVal = document.getElementById('filterMonth')?.value || '';
+  const cVal = document.getElementById('filterCompany')?.value || '';
+  const dVal = (document.getElementById('filterDetail')?.value || '').trim().toLowerCase();
 
   let filtered = rows;
   if (bVal) filtered = filtered.filter(r => r[buildingKey] === bVal);
   if (tVal) filtered = filtered.filter(r => r[typeKey] === tVal);
+  if (cVal) filtered = filtered.filter(r => r[companyKey] === cVal);
+  if (yVal) filtered = filtered.filter(r => { const dt = parseThaiDate_(r[dateKey]); return dt && String(dt.y) === yVal; });
+  if (mVal) filtered = filtered.filter(r => { const dt = parseThaiDate_(r[dateKey]); return dt && String(dt.m) === mVal; });
+  if (dVal) filtered = filtered.filter(r => String(r[detailKey] || '').toLowerCase().indexOf(dVal) !== -1);
 
   // จัดกลุ่มค่าใช้จ่ายรวมตาม Building x ประเภท (stacked bar) เพื่อวิเคราะห์ง่าย
   const buildings = [...new Set(filtered.map(r => r[buildingKey]).filter(Boolean))];
@@ -547,6 +587,21 @@ function drawRepairChart_() {
       plugins: { legend: { labels: { color: '#f0ede8' } } }
     }
   });
+
+  // ตารางรายละเอียดใต้กราฟ (เรียงล่าสุดก่อน)
+  const detailEl = document.getElementById('repairDetailTable');
+  if (detailEl) {
+    const sorted = [...filtered].sort((a, b) => b._row - a._row).slice(0, 100);
+    let tbl = '<table><thead><tr>' +
+      [buildingKey, dateKey, detailKey, companyKey, costKey, typeKey].filter(Boolean).map(h => `<th>${escHtml(h)}</th>`).join('') +
+      '</tr></thead><tbody>';
+    sorted.forEach(r => {
+      tbl += '<tr>' + [buildingKey, dateKey, detailKey, companyKey, costKey, typeKey].filter(Boolean)
+        .map(h => `<td>${escHtml(r[h] ?? '')}</td>`).join('') + '</tr>';
+    });
+    tbl += '</tbody></table>';
+    detailEl.innerHTML = tbl + (filtered.length > 100 ? `<div style="padding:8px;font-size:11px;color:var(--text2)">แสดง 100 จาก ${filtered.length} รายการ ลอง filter เพิ่มเพื่อดูเฉพาะที่ต้องการ</div>` : '');
+  }
 }
 
 /* ---------- GENERATORS + QR ---------- */
