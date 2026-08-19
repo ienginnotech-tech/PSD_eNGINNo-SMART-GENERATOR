@@ -210,8 +210,8 @@ tr:hover td{background:var(--surface2)}
     <div class="login-logo">PSD eNGINNo</div>
     <div class="login-sub">SMART GENERATOR MANAGEMENT SYSTEM</div>
     <div class="field">
-      <label>Module / อาคาร</label>
-      <input id="loginModuleKey" placeholder="เช่น eng-BTE, admin" autocomplete="off">
+      <label>ชื่อผู้ใช้ (Username)</label>
+      <input id="loginModuleKey" placeholder="ชื่อผู้ใช้" autocomplete="off">
     </div>
     <div class="field">
       <label>Password</label>
@@ -231,11 +231,21 @@ tr:hover td{background:var(--surface2)}
     </div>
     <div class="field">
       <label>อาคารที่สังกัด</label>
-      <select id="regBuilding"><option value="">— เลือกอาคาร —</option></select>
+      <select id="regBuilding">
+        <option value="">— เลือกอาคาร —</option>
+        <option value="BITEC I">BITEC I</option>
+        <option value="BITEC II">BITEC II</option>
+        <option value="BTB">BTB</option>
+        <option value="BTE">BTE</option>
+        <option value="UBC II">UBC II</option>
+        <option value="SL-P1">Summer LaSalle - P1</option>
+        <option value="SL-Campus A">Summer LaSalle - Campus A</option>
+        <option value="S23-Gen room">S23</option>
+      </select>
     </div>
     <div class="field">
-      <label>Module Key (ตั้งเอง)</label>
-      <input id="regModuleKey" placeholder="เช่น eng-BTE-somchai" autocomplete="off">
+      <label>Username (ตั้งเอง)</label>
+      <input id="regModuleKey" placeholder="เช่น somchai01" autocomplete="off">
     </div>
     <div class="field">
       <label>Password</label>
@@ -350,18 +360,6 @@ function doLogout() {
 function showRegister() {
   document.getElementById('loginCard').classList.add('hidden');
   document.getElementById('registerCard').classList.remove('hidden');
-  const buildingSel = document.getElementById('regBuilding');
-  if (buildingSel.options.length <= 1) {
-    callApi('getBuildings', {}).then(res => {
-      if (res.ok) {
-        (res.buildings || []).forEach(b => {
-          const opt = document.createElement('option');
-          opt.value = b.buildingCode; opt.textContent = b.buildingName || b.buildingCode;
-          buildingSel.appendChild(opt);
-        });
-      }
-    });
-  }
 }
 function showLogin() {
   document.getElementById('registerCard').classList.add('hidden');
@@ -1041,6 +1039,7 @@ function renderDailyCheck() {
     }
 
     const todayIso = new Date().toISOString().slice(0, 10);
+    const nowTime = new Date().toTimeString().slice(0, 5);
     let formHtml = `<div id="dcFormWrap">${genPickerHtml}
       <div class="card">
         <div class="card-title">ข้อมูลทั่วไป</div>
@@ -1048,6 +1047,7 @@ function renderDailyCheck() {
           <div class="field"><label>Building</label><input id="dc_building" data-dcfield="Building"></div>
           <div class="field"><label>Code</label><input id="dc_code" data-dcfield="Code"></div>
           <div class="field"><label>Date</label><input type="date" id="dc_date" data-dcfield="Date" value="${todayIso}" data-type="date"></div>
+          <div class="field"><label>เวลา (ตรวจสอบ ณ เวลานี้)</label><input type="time" id="dc_time" data-dcfield="เวลา" value="${nowTime}"></div>
           <div class="field"><label>ผู้ตรวจสอบ</label><input id="dc_inspector" data-dcfield="ผู้ตรวจสอบ"></div>
         </div>
       </div>
@@ -1275,6 +1275,13 @@ function renderPmForm(period, presetGenerator) {
           const todayIso = new Date().toISOString().slice(0, 10);
           formHtml += `<div class="field"><label>${escHtml(h)}</label>
             <input type="date" id="${inputId}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
+          return;
+        }
+
+        // ช่อง Start/Stop Running Time -> ใช้ time picker เปล่า ให้ช่างระบุเวลาเองตอนสตาร์ท/หยุดเครื่องจริง (ไม่ auto-fill)
+        if (/start running time|stop running time/i.test(h)) {
+          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+            <input type="time" id="${inputId}" data-header="${escAttr(h)}"></div>`;
           return;
         }
 
