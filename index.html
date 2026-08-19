@@ -123,6 +123,12 @@ tr:hover td{background:var(--surface2)}
 .status-ok{background:rgba(34,197,94,.15);color:var(--green)}
 .status-warn{background:rgba(255,140,0,.15);color:var(--amber)}
 .status-danger{background:rgba(248,81,73,.15);color:var(--rose)}
+.status-shared{background:rgba(167,139,250,.15);color:var(--purple)}
+.shared-note{font-size:11px;color:var(--text2);margin-top:8px;padding:8px 10px;
+  background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25);border-radius:6px}
+.shared-link{color:var(--purple);cursor:pointer;text-decoration:underline;font-weight:700;margin:0 2px}
+@keyframes flashHighlight{0%,100%{box-shadow:0 0 0 rgba(167,139,250,0)}50%{box-shadow:0 0 0 3px rgba(167,139,250,.9)}}
+.flash-highlight{animation:flashHighlight 0.8s ease-in-out 2}
 .alert-row{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;
   padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -529,6 +535,14 @@ function renderDashboard() {
 }
 
 /* ---- Fuel Tank section ---- */
+function scrollToTank_(code) {
+  const el = document.getElementById('tankcard_' + cssId(code));
+  if (!el) { alert('ไม่พบการ์ดของ ' + code + ' ในหน้านี้ (อาจต้องเลื่อนหาด้วยตาเอง หรือเครื่องไม่มีการ์ดแสดงคงเหลือ)'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('flash-highlight');
+  setTimeout(() => el.classList.remove('flash-highlight'), 1700);
+}
+
 function renderFuelTankDashboard_(tankRes) {
   if (!tankRes.ok || !(tankRes.rows || []).length) {
     return `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิง</div><div class="loading">ไม่มีข้อมูล</div></div>`;
@@ -537,14 +551,16 @@ function renderFuelTankDashboard_(tankRes) {
   const keys = Object.keys(rows[0]).filter(k => k !== '_row');
   const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
   const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
+  const codeKey = keys.find(k => /^code/i.test(k) && !/machine/i.test(k));
   const fullKey = keys.find(k => /^full/i.test(k));
   const actualKey = keys.find(k => /actual/i.test(k));
   const ropKey = keys.find(k => /rop/i.test(k));
+  const noteKey = keys.find(k => /หมายเหตุ|^note/i.test(k));
 
-  const statusLabel = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด' };
-  const statusClass = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger' };
-  const blinkClass = { ok: '', warn: 'blink-slow', critical: 'blink-fast' };
-  const blinkTextClass = { ok: '', warn: 'blink-text-slow', critical: 'blink-text-fast' };
+  const statusLabel = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด', shared: '🔗 ใช้ถังร่วม' };
+  const statusClass = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger', shared: 'status-shared' };
+  const blinkClass = { ok: '', warn: 'blink-slow', critical: 'blink-fast', shared: '' };
+  const blinkTextClass = { ok: '', warn: 'blink-text-slow', critical: 'blink-text-fast', shared: '' };
 
   // เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-80% / ฟ้า80-100%)
   //             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-80% / ฟ้า80-100%)
@@ -575,10 +591,26 @@ function renderFuelTankDashboard_(tankRes) {
   function tankCardHtml(r, big, isStore) {
     const full = parseFloat(r[fullKey]) || 0;
     const actual = parseFloat(r[actualKey]);
+    const note = noteKey ? String(r[noteKey] || '').trim() : '';
+    const ownCode = codeKey ? r[codeKey] : '';
+    const name = r[nameKey] || r[buildingKey] || '-';
+
+    // กรณีถังใช้ร่วมกัน (ไม่มี Full capacity ของตัวเอง แต่มีหมายเหตุอ้างอิงเครื่องอื่น)
+    if ((!full || full <= 0) && note) {
+      const refCodes = [...new Set((note.match(/[A-Z0-9]+-[A-Z0-9-]*\d+/gi) || []))];
+      const linksHtml = refCodes.length
+        ? refCodes.map(c => `<span class="shared-link" onclick="scrollToTank_('${escAttr(c)}')">${escHtml(c)}</span>`).join(', ')
+        : '';
+      return `<div class="tank-card${big ? ' big' : ''}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}">
+        <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass.shared}">${statusLabel.shared}</span></div>
+        <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
+        <div class="shared-note">📌 ${escHtml(note)}${linksHtml ? '<br>ดูถังจริงที่: ' + linksHtml : ''}</div>
+      </div>`;
+    }
+
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, isStore);
-    const name = r[nameKey] || r[buildingKey] || '-';
-    return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}">
+    return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
       ${buildGaugeHtml_(full, actual, isStore)}
@@ -587,6 +619,7 @@ function renderFuelTankDashboard_(tankRes) {
         <span>เต็ม: ${full.toLocaleString()} L</span>
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+      ${note ? `<div class="shared-note">📌 ${escHtml(note)}</div>` : ''}
     </div>`;
   }
 
@@ -596,6 +629,8 @@ function renderFuelTankDashboard_(tankRes) {
   function rowStatus_(r, isStore) {
     const full = parseFloat(r[fullKey]) || 0;
     const actual = parseFloat(r[actualKey]);
+    const note = noteKey ? String(r[noteKey] || '').trim() : '';
+    if ((!full || full <= 0) && note) return { st: 'shared', full, actual, pct: null }; // ถังร่วม ไม่คิดแจ้งเตือนซ้ำ
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     return { st: statusOfPct(pct, isStore), full, actual, pct };
   }
@@ -604,7 +639,7 @@ function renderFuelTankDashboard_(tankRes) {
     const isStore = storeTanks.includes(r);
     const info = rowStatus_(r, isStore);
     return { r, isStore, ...info };
-  }).filter(x => x.st !== 'ok').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
+  }).filter(x => x.st !== 'ok' && x.st !== 'shared').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
 
   let html = '<div class="card"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
   html += storeTanks.length
