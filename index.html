@@ -625,7 +625,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     const gKeys = Object.keys(gRows[0]).filter(k => k !== '_row');
     const gCodeKey = gKeys.find(k => /^code/i.test(k.trim()) && !/machine/i.test(k));
     const brandKey = gKeys.find(k => /^(brand|ยี่ห้อ)\b/i.test(k.trim()));
-    const capacityKey = gKeys.find(k => /^power capacity/i.test(k.trim()));
+    const capacityKey = gKeys.find(k => /capacity/i.test(k) && !/full|80\s*%|fuel|storage|litre|liter/i.test(k));
     if (gCodeKey) {
       gRows.forEach(r => {
         const code = r[gCodeKey];
