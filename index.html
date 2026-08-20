@@ -103,8 +103,15 @@ tr:hover td{background:var(--surface2)}
 
 #qrReader{width:100%;max-width:400px;margin:0 auto}
 
-.tank-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:10px}
-.tank-card.big{padding:18px}
+.tank-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px 14px 32px;margin-bottom:10px;position:relative}
+.tank-card.big{padding:18px 18px 36px}
+.tank-brand-tag{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--text2);
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-weight:700}
+.tank-group{margin-top:6px;padding-top:14px;border-top:1px dashed var(--border)}
+.tank-group:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.tank-group-title{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px;
+  display:flex;align-items:baseline;gap:8px}
+.tank-group-count{font-size:11px;color:var(--text2);font-weight:400}
 .tank-name{font-weight:700;font-size:13px}
 .tank-sub{font-size:11px;color:var(--text2);margin-top:2px}
 .tank-bar-bg{background:var(--surface);border-radius:6px;height:10px;margin-top:10px;overflow:hidden;border:1px solid var(--border)}
@@ -554,7 +561,7 @@ function renderDashboard() {
       </div>`;
 
     /* ---- FUEL TANK STATUS ---- */
-    html += renderFuelTankDashboard_(tankRes);
+    html += renderFuelTankDashboard_(tankRes, genRes);
 
     /* ---- REPAIR COST CHART ---- */
     html += renderRepairCostSection_(repairRes);
@@ -590,7 +597,13 @@ function scrollToTank_(code) {
   setTimeout(() => target.classList.remove('flash-highlight'), 1700);
 }
 
-function renderFuelTankDashboard_(tankRes) {
+const BUILDING_ORDER_ = ['BITEC I', 'BITEC II', 'BTB', 'BTE', 'UBC II', 'SL-P1', 'SL-Campus A', 'S23-Gen room'];
+function buildingSortIndex_(building) {
+  const idx = BUILDING_ORDER_.indexOf(building);
+  return idx === -1 ? 999 : idx;
+}
+
+function renderFuelTankDashboard_(tankRes, genRes) {
   if (!tankRes.ok || !(tankRes.rows || []).length) {
     return `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิง</div><div class="loading">ไม่มีข้อมูล</div></div>`;
   }
@@ -603,6 +616,31 @@ function renderFuelTankDashboard_(tankRes) {
   const actualKey = keys.find(k => /actual/i.test(k));
   const ropKey = keys.find(k => /rop/i.test(k));
   const noteKey = keys.find(k => /หมายเหตุ|^note/i.test(k));
+
+  // สร้าง map รหัสเครื่อง -> ป้ายยี่ห้อ+ขนาด (เช่น "CATERPILLAR-1400kVA") จากทะเบียนเครื่อง (Generator Specification)
+  // ใช้ regex เข้มงวด (ต้องขึ้นต้นด้วยคำนี้เป๊ะๆ) กันจับคอลัมน์อื่นผิดโดยไม่ตั้งใจ
+  const BRAND_MAP = {};
+  if (genRes && genRes.ok && (genRes.rows || []).length) {
+    const gRows = genRes.rows;
+    const gKeys = Object.keys(gRows[0]).filter(k => k !== '_row');
+    const gCodeKey = gKeys.find(k => /^code/i.test(k.trim()) && !/machine/i.test(k));
+    const brandKey = gKeys.find(k => /^(brand|ยี่ห้อ)\b/i.test(k.trim()));
+    const capacityKey = gKeys.find(k => /^power capacity/i.test(k.trim()));
+    if (gCodeKey) {
+      gRows.forEach(r => {
+        const code = r[gCodeKey];
+        if (!code) return;
+        const brand = brandKey ? String(r[brandKey] || '').trim() : '';
+        const capRaw = capacityKey ? String(r[capacityKey] || '').trim() : '';
+        const cap = capRaw.replace(/kva/i, '').trim(); // กันกรณีเซลล์มีหน่วยติดมาด้วยอยู่แล้ว
+        let label = '';
+        if (brand && cap) label = `${brand}-${cap}kVA`;
+        else if (brand) label = brand;
+        else if (cap) label = `${cap}kVA`;
+        if (label) BRAND_MAP[code] = label;
+      });
+    }
+  }
 
   const statusLabel = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด', shared: '🔗 ใช้ถังร่วม' };
   const statusClass = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger', shared: 'status-shared' };
@@ -641,6 +679,7 @@ function renderFuelTankDashboard_(tankRes) {
     const note = noteKey ? String(r[noteKey] || '').trim() : '';
     const ownCode = codeKey ? r[codeKey] : '';
     const name = r[nameKey] || r[buildingKey] || '-';
+    const brandTag = ownCode && BRAND_MAP[ownCode] ? `<div class="tank-brand-tag">${escHtml(BRAND_MAP[ownCode])}</div>` : '';
 
     // กรณีถังใช้ร่วมกัน (ไม่มี Full capacity ของตัวเอง แต่มีหมายเหตุอ้างอิงเครื่องอื่น)
     if ((!full || full <= 0) && note) {
@@ -652,6 +691,7 @@ function renderFuelTankDashboard_(tankRes) {
         <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass.shared}">${statusLabel.shared}</span></div>
         <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
         <div class="shared-note">📌 ${escHtml(note)}${linksHtml ? '<br>ดูถังจริงที่: ' + linksHtml : ''}</div>
+        ${brandTag}
       </div>`;
     }
 
@@ -667,11 +707,13 @@ function renderFuelTankDashboard_(tankRes) {
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
       ${note ? `<div class="shared-note">📌 ${escHtml(note)}</div>` : ''}
+      ${brandTag}
     </div>`;
   }
 
   const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
-  const genTanks = rows.filter(r => !storeTanks.includes(r));
+  const genTanks = rows.filter(r => !storeTanks.includes(r))
+    .sort((a, b) => buildingSortIndex_(a[buildingKey]) - buildingSortIndex_(b[buildingKey]));
 
   function rowStatus_(r, isStore) {
     const full = parseFloat(r[fullKey]) || 0;
@@ -714,8 +756,24 @@ function renderFuelTankDashboard_(tankRes) {
     html += '</div>';
   }
 
-  html += `<div class="card"><div class="card-title">สถานะถังน้ำมันประจำเครื่อง (DAY TANK)</div>
-    <div class="grid-cards">${genTanks.map(r => tankCardHtml(r, false, false)).join('')}</div></div>`;
+  // จัดกลุ่มการ์ด Day Tank แยกตามอาคาร เรียงตาม BUILDING_ORDER_ แต่ละกลุ่มมีหัวข้อกำกับชัดเจน กันตาลาย
+  const buildingGroups = {};
+  const buildingGroupOrder = [];
+  genTanks.forEach(r => {
+    const b = r[buildingKey] || 'อื่นๆ';
+    if (!buildingGroups[b]) { buildingGroups[b] = []; buildingGroupOrder.push(b); }
+    buildingGroups[b].push(r);
+  });
+  buildingGroupOrder.sort((a, b) => buildingSortIndex_(a) - buildingSortIndex_(b));
+
+  html += `<div class="card"><div class="card-title">สถานะถังน้ำมันประจำเครื่อง (DAY TANK)</div>`;
+  buildingGroupOrder.forEach(b => {
+    html += `<div class="tank-group">
+      <div class="tank-group-title">${escHtml(b)} <span class="tank-group-count">(${buildingGroups[b].length} เครื่อง)</span></div>
+      <div class="grid-cards">${buildingGroups[b].map(r => tankCardHtml(r, false, false)).join('')}</div>
+    </div>`;
+  });
+  html += `</div>`;
 
   return html;
 }
