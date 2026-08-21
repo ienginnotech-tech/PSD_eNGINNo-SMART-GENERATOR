@@ -597,10 +597,15 @@ function scrollToTank_(code) {
   setTimeout(() => target.classList.remove('flash-highlight'), 1700);
 }
 
-const BUILDING_ORDER_ = ['BITEC I', 'BITEC II', 'BTB', 'BTE', 'UBC II', 'SL-P1', 'SL-Campus A', 'S23-Gen room'];
+const BUILDING_ORDER_ = ['BITEC I', 'BITEC II', 'BTB', 'BTE', 'UBC II', 'Summer LaSalle', 'S23'];
 function buildingSortIndex_(building) {
-  const idx = BUILDING_ORDER_.indexOf(building);
+  const idx = BUILDING_ORDER_.indexOf(displayGroupLabel_(building));
   return idx === -1 ? 999 : idx;
+}
+// รวม SL-P1 กับ SL-Campus A ไว้กลุ่มเดียวกัน (Summer LaSalle) แทนแยกหัวข้อ กันเปลืองพื้นที่เวลามีแค่เครื่องเดียวต่อกลุ่ม
+const DISPLAY_GROUP_MAP_ = { 'SL-P1': 'Summer LaSalle', 'SL-Campus A': 'Summer LaSalle', 'S23-Gen room': 'S23' };
+function displayGroupLabel_(building) {
+  return DISPLAY_GROUP_MAP_[building] || building;
 }
 
 function renderFuelTankDashboard_(tankRes, genRes) {
@@ -757,10 +762,11 @@ function renderFuelTankDashboard_(tankRes, genRes) {
   }
 
   // จัดกลุ่มการ์ด Day Tank แยกตามอาคาร เรียงตาม BUILDING_ORDER_ แต่ละกลุ่มมีหัวข้อกำกับชัดเจน กันตาลาย
+  // (SL-P1 กับ SL-Campus A ถูกรวมไว้กลุ่มเดียวกัน "Summer LaSalle" ผ่าน displayGroupLabel_)
   const buildingGroups = {};
   const buildingGroupOrder = [];
   genTanks.forEach(r => {
-    const b = r[buildingKey] || 'อื่นๆ';
+    const b = displayGroupLabel_(r[buildingKey] || 'อื่นๆ');
     if (!buildingGroups[b]) { buildingGroups[b] = []; buildingGroupOrder.push(b); }
     buildingGroups[b].push(r);
   });
