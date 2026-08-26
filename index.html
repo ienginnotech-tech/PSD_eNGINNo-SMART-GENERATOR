@@ -1521,6 +1521,20 @@ function renderPmForm(period, presetGenerator) {
     let formHtml = '';
     groupOrder.forEach(g => {
       formHtml += `<div class="card"><div class="card-title">${escHtml(g)}</div><div class="form-grid">`;
+      if (g === 'หัวหน้าพิจารณา') {
+        formHtml += `<div class="field">
+          <label>หัวหน้างานพิจารณา</label>
+          <select id="pm_sup_ack" data-header="หัวหน้างานพิจารณา" onchange="togglePmSupervisorAck_(this)">
+            <option value="">— ยังไม่พิจารณา —</option>
+            <option value="อนุมัติ">✅ อนุมัติ</option>
+            <option value="ไม่อนุมัติ">❌ ไม่อนุมัติ</option>
+          </select>
+        </div>
+        <div class="field" id="pm_sup_detail_wrap" style="display:none">
+          <label>รายละเอียดเพิ่มเติม (กรณีไม่อนุมัติ)</label>
+          <input id="pm_sup_detail" data-header="รายละเอียดเพิ่มเติม (หัวหน้า)">
+        </div>`;
+      }
       groups[g].forEach(h => {
         const inputId = 'pmf_' + cssId(h);
         let preset = '';
@@ -1574,6 +1588,13 @@ function renderPmForm(period, presetGenerator) {
             <input id="${inputId}" data-header="${escAttr(h)}" value="${escAttr(preset)}"${hintAttr}></div>`;
         }
       });
+      if (g === 'หัวหน้าพิจารณา') {
+        const todayIso2 = new Date().toISOString().slice(0, 10);
+        formHtml += `<div class="field">
+          <label>วันที่หัวหน้างานลงนาม</label>
+          <input type="date" id="pm_sup_date" data-header="วันที่หัวหน้างานลงนาม" data-type="date">
+        </div>`;
+      }
       formHtml += '</div>';
       if (g === 'หัวหน้าพิจารณา') {
         formHtml += signaturePadHtml_('pm_sup_sigpad', 460, 150);
@@ -1622,6 +1643,16 @@ function applyGenPreset(selectEl) {
   });
   // อัปเดต dropdown ช่างผู้รับผิดชอบให้ตรงกับอาคารใหม่ (ถ้ามี field แบบนี้อยู่ในฟอร์ม)
   wrap.querySelectorAll('select[id$="_sel"]').forEach(sel => updateTechnicianForBuilding_(sel.id, info.building));
+}
+
+// พอหัวหน้างานเลือกผล "อนุมัติ/ไม่อนุมัติ" ในฟอร์ม PM -> เติมวันที่วันนี้ให้อัตโนมัติ + โชว์ช่องรายละเอียดถ้าเลือก "ไม่อนุมัติ"
+function togglePmSupervisorAck_(selectEl) {
+  const dateEl = document.getElementById('pm_sup_date');
+  if (selectEl.value && dateEl && !dateEl.value) {
+    dateEl.value = new Date().toISOString().slice(0, 10);
+  }
+  const detailWrap = document.getElementById('pm_sup_detail_wrap');
+  if (detailWrap) detailWrap.style.display = selectEl.value === 'ไม่อนุมัติ' ? 'block' : 'none';
 }
 
 function submitPm(period) {
