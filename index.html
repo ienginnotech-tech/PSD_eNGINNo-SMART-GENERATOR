@@ -1183,9 +1183,19 @@ function renderDailyCheck() {
       </div>`;
     }
 
+    // แจ้งเตือนถ้ามีบันทึกล่าสุดที่หัวหน้างานยังไม่รับทราบ
+    const unackedCount = (res.rows || []).filter(r => !String(r['หัวหน้างานรับทราบ'] || '').trim()).length;
+    const supervisorAlertHtml = unackedCount > 0
+      ? `<div class="card blink-slow" style="border-color:var(--amber)">
+          <div class="blink-text-slow" style="color:var(--amber);font-weight:700">
+            ⚠️ มี ${unackedCount} รายการล่าสุดที่หัวหน้างานยังไม่รับทราบ
+          </div>
+        </div>`
+      : '';
+
     const todayIso = new Date().toISOString().slice(0, 10);
     const nowTime = new Date().toTimeString().slice(0, 5);
-    let formHtml = `<div id="dcFormWrap">${genPickerHtml}
+    let formHtml = `<div id="dcFormWrap">${supervisorAlertHtml}${genPickerHtml}
       <div class="card">
         <div class="card-title">ข้อมูลทั่วไป</div>
         <div class="form-grid">
@@ -1230,6 +1240,20 @@ function renderDailyCheck() {
         </div>
         <div class="field"><label>หมายเหตุ</label><input id="dc_remark" data-dcfield="หมายเหตุ"></div>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">✍️ การรับทราบของหัวหน้างาน (แยกจากช่างผู้ตรวจสอบ)</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>หัวหน้างานรับทราบหรือยัง?</label>
+          <select id="dc_sup_ack" data-dcfield="หัวหน้างานรับทราบ" onchange="toggleSupervisorAck_(this)">
+            <option value="">— ยังไม่รับทราบ —</option>
+            <option value="รับทราบ">✅ รับทราบแล้ว</option>
+          </select>
+        </div>
+        <div class="field"><label>ลงลายเซ็นต์ / ชื่อหัวหน้างาน</label><input id="dc_sup_name" data-dcfield="ลายเซ็นต์หัวหน้างาน"></div>
+        <div class="field"><label>วันที่หัวหน้างานลงนาม</label><input type="date" id="dc_sup_date" data-dcfield="วันที่หัวหน้างานลงนาม" data-type="date"></div>
+      </div>
       <button class="btn" style="margin-top:14px" onclick="submitDailyCheck_()">✓ บันทึกผลตรวจสอบ</button>
       <span id="dcSubmitMsg" style="margin-left:12px;font-size:12px"></span>
     </div></div>`;
@@ -1251,6 +1275,14 @@ function renderDailyCheck() {
     el.innerHTML = pageHeader('✅ Daily Check', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
       <button class="btn small ghost" onclick="renderDailyCheck()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
+}
+
+// พอหัวหน้างานเลือก "รับทราบแล้ว" -> เติมวันที่วันนี้ให้อัตโนมัติ (ยังแก้ไขเองได้)
+function toggleSupervisorAck_(selectEl) {
+  const dateEl = document.getElementById('dc_sup_date');
+  if (selectEl.value === 'รับทราบ' && dateEl && !dateEl.value) {
+    dateEl.value = new Date().toISOString().slice(0, 10);
+  }
 }
 
 function applyDcGenPreset_(selectEl) {
@@ -1345,7 +1377,8 @@ function groupOf_(header) {
   if (/^running\s*:|start running time|stop running time/i.test(h)) return 'ระหว่างทดสอบ (Running)';
   if (/^after\s*(test)?\s*:/i.test(h)) return 'หลังทดสอบ (After Test)';
   if (/test load|load generator|testing period|summarize/i.test(h)) return 'สรุปผล Load Test';
-  if (/สภาพโดยทั่วไป|availability|ช่างผู้ทดสอบ|หัวหน้าตรวจสอบ|checked by|signature/i.test(h)) return 'สรุปผลตรวจ / ผู้บันทึก';
+  if (/หัวหน้า/i.test(h)) return 'การรับทราบของหัวหน้างาน'; // แยก module ไม่ปนกับช่างผู้ทดสอบ
+  if (/สภาพโดยทั่วไป|availability|ช่างผู้ทดสอบ|checked by|signature/i.test(h)) return 'สรุปผลตรวจ / ผู้บันทึก';
   return 'ข้อมูลอื่นๆ';
 }
 
@@ -1393,6 +1426,20 @@ function renderPmForm(period, presetGenerator) {
           <select id="pmGenPicker" onchange="applyGenPreset(this)">${options}</select>
         </div>
       </div>`;
+    }
+
+    // แจ้งเตือนถ้ามีบันทึกล่าสุดที่หัวหน้างานยังไม่รับทราบ/ลงชื่อ
+    let supervisorAlertHtml = '';
+    const supervisorKey = (res.headers || []).find(h => /หัวหน้า/i.test(h));
+    if (supervisorKey) {
+      const unacked = (res.rows || []).filter(r => !String(r[supervisorKey] || '').trim()).length;
+      if (unacked > 0) {
+        supervisorAlertHtml = `<div class="card blink-slow" style="border-color:var(--amber)">
+          <div class="blink-text-slow" style="color:var(--amber);font-weight:700">
+            ⚠️ มี ${unacked} รายการล่าสุดที่หัวหน้างานยังไม่รับทราบ/ลงชื่อ (คอลัมน์ "${escHtml(supervisorKey)}")
+          </div>
+        </div>`;
+      }
     }
 
     // จัดกลุ่ม header ตามลำดับที่เจอครั้งแรก
@@ -1464,7 +1511,7 @@ function renderPmForm(period, presetGenerator) {
       formHtml += '</div></div>';
     });
 
-    formHtml = `<div id="pmFormWrap">${genPickerHtml}${formHtml}
+    formHtml = `<div id="pmFormWrap">${supervisorAlertHtml}${genPickerHtml}${formHtml}
       <div class="card">
         <button class="btn" onclick="submitPm('${period}')">✓ บันทึกข้อมูล</button>
         <span id="pmSubmitMsg" style="margin-left:12px;font-size:12px"></span>
