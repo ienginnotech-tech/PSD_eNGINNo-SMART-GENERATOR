@@ -290,8 +290,8 @@ tr:hover td{background:var(--surface2)}
   <div class="sidebar" id="sidebar">
     <div class="brand">
       <div>
-        <div class="brand-title">⚡ PSD_eNGINNo</div>
-        <div class="brand-sub">SMART GENERATOR MANAGEMENT</div>
+        <div class="brand-title">⚡ eNGINNo</div>
+        <div class="brand-sub">SMART GENERATOR</div>
       </div>
       <button class="gear-btn" onclick="navigate('settings')" title="ตั้งค่า">⚙️</button>
     </div>
@@ -350,6 +350,62 @@ function callApi(action, data) {
   });
 
   return Promise.race([apiPromise, timeoutPromise]);
+}
+
+// รายชื่อช่างผู้รับผิดชอบบำรุงรักษาเครื่องกำเนิดไฟฟ้าแต่ละอาคาร (แก้ไข/เพิ่มได้ที่นี่จุดเดียว)
+const TECHNICIANS = [
+  { building: 'SL-P1',        name: 'อัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
+  { building: 'SL-Campus A',  name: 'อัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
+  { building: 'BITEC I',      name: 'กฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
+  { building: 'BITEC II',     name: 'กฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
+  { building: 'BTB',          name: 'กมล บุญทาป',       empId: '21000050', dept: 'Property Management',       position: 'Technical Supervisor' },
+  { building: 'UBC II',       name: 'ภาณุพงศ์ ปรุงเรณุ', empId: '21000171', dept: 'Property Management',       position: 'Technician' },
+  { building: 'BTE',          name: 'นายเสรี การะวงค์', empId: '21000037', dept: 'ENS',                       position: 'Technical Supervisor' }
+];
+
+// สร้าง field แบบ dropdown เลือกช่างที่รับผิดชอบ (ตาม popup ที่ขอ) พร้อม option "อื่นๆ (พิมพ์เอง)"
+// attrName: 'data-header' (สำหรับ PM form) หรือ 'data-dcfield' (สำหรับ Daily Check)
+function renderTechnicianFieldHtml_(label, attrName, attrValue, idPrefix, currentBuilding) {
+  const selId = idPrefix + '_sel';
+  const otherId = idPrefix + '_other';
+  const matched = TECHNICIANS.find(t => t.building === currentBuilding);
+  let options = '<option value="">— เลือกช่างผู้รับผิดชอบ —</option>';
+  const seen = new Set();
+  TECHNICIANS.forEach(t => {
+    if (seen.has(t.name)) return; // กันชื่อซ้ำ (เช่น BITEC I/II ใช้ช่างคนเดียวกัน)
+    seen.add(t.name);
+    const sel = matched && matched.name === t.name ? ' selected' : '';
+    options += `<option value="${escAttr(t.name)}"${sel}>${escHtml(t.name)} (${escHtml(t.position)})</option>`;
+  });
+  options += '<option value="__other__">อื่นๆ (พิมพ์เอง)</option>';
+  return `<div class="field">
+    <label>${escHtml(label)}</label>
+    <select id="${selId}" ${attrName}="${escAttr(attrValue)}" onchange="techSelectOnChange_(this,'${otherId}')">${options}</select>
+    <input id="${otherId}" placeholder="พิมพ์ชื่อช่าง" style="display:none;margin-top:6px">
+  </div>`;
+}
+
+// สลับระหว่างเลือกจาก dropdown กับพิมพ์เอง (ย้าย data-header/data-dcfield ไปที่ element ที่ "active" อยู่
+// เพื่อให้ตอน submit เก็บค่าจาก element ที่ถูกต้องเพียงจุดเดียว)
+function techSelectOnChange_(selectEl, otherInputId) {
+  const otherInput = document.getElementById(otherInputId);
+  if (selectEl.value === '__other__') {
+    otherInput.style.display = 'block';
+    if (selectEl.dataset.header !== undefined) { otherInput.dataset.header = selectEl.dataset.header; delete selectEl.dataset.header; }
+    if (selectEl.dataset.dcfield !== undefined) { otherInput.dataset.dcfield = selectEl.dataset.dcfield; delete selectEl.dataset.dcfield; }
+  } else {
+    otherInput.style.display = 'none';
+    if (otherInput.dataset.header !== undefined) { selectEl.dataset.header = otherInput.dataset.header; delete otherInput.dataset.header; }
+    if (otherInput.dataset.dcfield !== undefined) { selectEl.dataset.dcfield = otherInput.dataset.dcfield; delete otherInput.dataset.dcfield; }
+  }
+}
+
+// เรียกเมื่อเลือกเครื่อง/อาคารเปลี่ยน -> อัปเดต dropdown ช่างให้ตรงกับอาคารใหม่อัตโนมัติ (ถ้ายังไม่ได้กด "อื่นๆ" ค้างไว้)
+function updateTechnicianForBuilding_(selectId, building) {
+  const sel = document.getElementById(selectId);
+  if (!sel || sel.dataset.header === undefined && sel.dataset.dcfield === undefined) return; // อยู่โหมด "อื่นๆ" ไม่แตะ
+  const matched = TECHNICIANS.find(t => t.building === building);
+  if (matched) sel.value = matched.name;
 }
 
 /* ---------- LOGIN ---------- */
@@ -1137,7 +1193,7 @@ function renderDailyCheck() {
           <div class="field"><label>Code</label><input id="dc_code" data-dcfield="Code"></div>
           <div class="field"><label>Date</label><input type="date" id="dc_date" data-dcfield="Date" value="${todayIso}" data-type="date"></div>
           <div class="field"><label>เวลา (ตรวจสอบ ณ เวลานี้)</label><input type="time" id="dc_time" data-dcfield="เวลา" value="${nowTime}"></div>
-          <div class="field"><label>ผู้ตรวจสอบ</label><input id="dc_inspector" data-dcfield="ผู้ตรวจสอบ"></div>
+          ${renderTechnicianFieldHtml_('ผู้ตรวจสอบ', 'data-dcfield', 'ผู้ตรวจสอบ', 'dc_inspector', '')}
         </div>
       </div>
       <div class="card"><div class="card-title">รายการตรวจสอบ (อย่างน้อย 10 หัวข้อ)</div><div class="form-grid">`;
@@ -1163,7 +1219,17 @@ function renderDailyCheck() {
     });
 
     formHtml += `</div>
-      <div class="field" style="margin-top:10px"><label>หมายเหตุ</label><input id="dc_remark" data-dcfield="หมายเหตุ"></div>
+      <div class="form-grid" style="margin-top:10px">
+        <div class="field">
+          <label>สรุปสถานะความพร้อมใช้งาน</label>
+          <select id="dc_availability" data-dcfield="สรุปสถานะความพร้อม">
+            <option value="พร้อมใช้งาน">🟢 พร้อมใช้งาน</option>
+            <option value="ใช้งานชั่วคราว">🟡 ใช้งานชั่วคราว</option>
+            <option value="หยุดปรับปรุง">🔴 หยุดปรับปรุง</option>
+          </select>
+        </div>
+        <div class="field"><label>หมายเหตุ</label><input id="dc_remark" data-dcfield="หมายเหตุ"></div>
+      </div>
       <button class="btn" style="margin-top:14px" onclick="submitDailyCheck_()">✓ บันทึกผลตรวจสอบ</button>
       <span id="dcSubmitMsg" style="margin-left:12px;font-size:12px"></span>
     </div></div>`;
@@ -1192,6 +1258,7 @@ function applyDcGenPreset_(selectEl) {
   if (!code || !DC_GEN_MAP[code]) return;
   document.getElementById('dc_building').value = DC_GEN_MAP[code].building;
   document.getElementById('dc_code').value = DC_GEN_MAP[code].code;
+  updateTechnicianForBuilding_('dc_inspector_sel', DC_GEN_MAP[code].building);
 }
 
 function readFileAsBase64_(fileInput) {
@@ -1374,6 +1441,13 @@ function renderPmForm(period, presetGenerator) {
           return;
         }
 
+        // ช่องผู้ตรวจสอบ/ผู้ทดสอบ -> ใช้ dropdown รายชื่อช่างที่รับผิดชอบแทนพิมพ์เอง
+        if (/ผู้ตรวจสอบ|ผู้ทดสอบ|ช่างผู้ทดสอบ|inspector|checked\s*by/i.test(h)) {
+          const buildingGuess = presetGenerator ? (presetGenerator[Object.keys(presetGenerator).find(k=>/building|อาคาร/i.test(k))] || '') : '';
+          formHtml += renderTechnicianFieldHtml_(h, 'data-header', h, inputId, buildingGuess);
+          return;
+        }
+
         const analysis = analyzeField_(h);
         if (analysis.type === 'select') {
           formHtml += `<div class="field"><label>${escHtml(h)}</label>
@@ -1428,6 +1502,8 @@ function applyGenPreset(selectEl) {
     else if (/building|อาคาร/i.test(h)) el.value = info.building;
     else if (/^code|รหัสเครื่องจักร/i.test(h)) el.value = info.code;
   });
+  // อัปเดต dropdown ช่างผู้รับผิดชอบให้ตรงกับอาคารใหม่ (ถ้ามี field แบบนี้อยู่ในฟอร์ม)
+  wrap.querySelectorAll('select[id$="_sel"]').forEach(sel => updateTechnicianForBuilding_(sel.id, info.building));
 }
 
 function submitPm(period) {
