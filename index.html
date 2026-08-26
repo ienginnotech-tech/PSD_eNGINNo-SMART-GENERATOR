@@ -179,9 +179,8 @@ tr:hover td{background:var(--surface2)}
 .nav-section-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 /* Global clock top-right */
-#globalClock{position:fixed;top:14px;right:24px;text-align:right;font-size:11px;color:var(--text2);z-index:40;line-height:1.5}
+#headerClock{text-align:right;font-size:11px;color:var(--text2);line-height:1.5;white-space:nowrap}
 #clockDate{color:var(--accent);font-weight:700;font-size:12px}
-@media (max-width:820px){ #globalClock{display:none} }
 
 /* Settings page */
 .theme-swatch{border:2px solid var(--border2);border-radius:8px;padding:16px;cursor:pointer;text-align:center;transition:.15s}
@@ -291,7 +290,6 @@ tr:hover td{background:var(--surface2)}
 
 <!-- ============ APP SHELL ============ -->
 <div id="appShell">
-  <div id="globalClock"><div id="clockDate"></div><div id="clockTime"></div></div>
   <div class="sidebar" id="sidebar">
     <div class="brand">
       <div>
@@ -359,14 +357,29 @@ function callApi(action, data) {
 
 // รายชื่อช่างผู้รับผิดชอบบำรุงรักษาเครื่องกำเนิดไฟฟ้าแต่ละอาคาร (แก้ไข/เพิ่มได้ที่นี่จุดเดียว)
 const TECHNICIANS = [
-  { building: 'SL-P1',        name: 'อัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
-  { building: 'SL-Campus A',  name: 'อัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
-  { building: 'BITEC I',      name: 'กฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
-  { building: 'BITEC II',     name: 'กฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
-  { building: 'BTB',          name: 'กมล บุญทาป',       empId: '21000050', dept: 'Property Management',       position: 'Technical Supervisor' },
-  { building: 'UBC II',       name: 'ภาณุพงศ์ ปรุงเรณุ', empId: '21000171', dept: 'Property Management',       position: 'Technician' },
+  { building: 'SL-P1',        name: 'นายอัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
+  { building: 'SL-Campus A',  name: 'นายอัมรินทร์ บุญเอก', empId: '21000015', dept: 'ENS',                       position: 'Technical Supervisor' },
+  { building: 'BITEC I',      name: 'นายกฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
+  { building: 'BITEC II',     name: 'นายกฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
+  { building: 'BTB',          name: 'นายกมล บุญทาป',       empId: '21000050', dept: 'Property Management',       position: 'Technical Supervisor' },
+  { building: 'UBC II',       name: 'นายภาณุพงศ์ ปรุงเรณุ', empId: '21000171', dept: 'Property Management',       position: 'Technician' },
   { building: 'BTE',          name: 'นายเสรี การะวงค์', empId: '21000037', dept: 'ENS',                       position: 'Technical Supervisor' }
 ];
+
+// สร้างตัวเลือก dropdown ช่างที่รับผิดชอบ กรองเฉพาะอาคารที่ระบุ (ถ้าไม่มีคนตรงอาคาร หรือยังไม่รู้อาคาร -> โชว์ทั้งหมดแทน)
+function techOptionsForBuilding_(building) {
+  let list = building ? TECHNICIANS.filter(t => t.building === building) : [];
+  if (!list.length) list = TECHNICIANS;
+  const seen = new Set();
+  let options = '<option value="">— เลือกช่างผู้รับผิดชอบ —</option>';
+  list.forEach(t => {
+    if (seen.has(t.name)) return;
+    seen.add(t.name);
+    options += `<option value="${escAttr(t.name)}">${escHtml(t.name)} (${escHtml(t.position)})</option>`;
+  });
+  options += '<option value="__other__">อื่นๆ (พิมพ์เอง)</option>';
+  return options;
+}
 
 // สร้าง field แบบ dropdown เลือกช่างที่รับผิดชอบ (ตาม popup ที่ขอ) พร้อม option "อื่นๆ (พิมพ์เอง)"
 // attrName: 'data-header' (สำหรับ PM form) หรือ 'data-dcfield' (สำหรับ Daily Check)
@@ -374,15 +387,8 @@ function renderTechnicianFieldHtml_(label, attrName, attrValue, idPrefix, curren
   const selId = idPrefix + '_sel';
   const otherId = idPrefix + '_other';
   const matched = TECHNICIANS.find(t => t.building === currentBuilding);
-  let options = '<option value="">— เลือกช่างผู้รับผิดชอบ —</option>';
-  const seen = new Set();
-  TECHNICIANS.forEach(t => {
-    if (seen.has(t.name)) return; // กันชื่อซ้ำ (เช่น BITEC I/II ใช้ช่างคนเดียวกัน)
-    seen.add(t.name);
-    const sel = matched && matched.name === t.name ? ' selected' : '';
-    options += `<option value="${escAttr(t.name)}"${sel}>${escHtml(t.name)} (${escHtml(t.position)})</option>`;
-  });
-  options += '<option value="__other__">อื่นๆ (พิมพ์เอง)</option>';
+  let options = techOptionsForBuilding_(currentBuilding);
+  if (matched) options = options.replace(`value="${matched.name}"`, `value="${matched.name}" selected`);
   return `<div class="field">
     <label>${escHtml(label)}</label>
     <select id="${selId}" ${attrName}="${escAttr(attrValue)}" onchange="techSelectOnChange_(this,'${otherId}')">${options}</select>
@@ -405,10 +411,11 @@ function techSelectOnChange_(selectEl, otherInputId) {
   }
 }
 
-// เรียกเมื่อเลือกเครื่อง/อาคารเปลี่ยน -> อัปเดต dropdown ช่างให้ตรงกับอาคารใหม่อัตโนมัติ (ถ้ายังไม่ได้กด "อื่นๆ" ค้างไว้)
+// เรียกเมื่อเลือกเครื่อง/อาคารเปลี่ยน -> สร้างรายการ dropdown ช่างใหม่ให้ตรงกับอาคารนั้นๆ (ถ้ายังไม่ได้กด "อื่นๆ" ค้างไว้)
 function updateTechnicianForBuilding_(selectId, building) {
   const sel = document.getElementById(selectId);
-  if (!sel || sel.dataset.header === undefined && sel.dataset.dcfield === undefined) return; // อยู่โหมด "อื่นๆ" ไม่แตะ
+  if (!sel || (sel.dataset.header === undefined && sel.dataset.dcfield === undefined)) return; // อยู่โหมด "อื่นๆ" ไม่แตะ
+  sel.innerHTML = techOptionsForBuilding_(building);
   const matched = TECHNICIANS.find(t => t.building === building);
   if (matched) sel.value = matched.name;
 }
@@ -639,7 +646,9 @@ function pageHeader(title, desc) {
       : SESSION.buildingCode.split(',').map(s => s.trim()).join(' + ');
     buildingBadge = `<div class="header-building-badge">🏢 ${escHtml(label)}</div>`;
   }
-  return `<div class="topbar"><div><div class="page-title">${title}</div><div class="page-desc">${desc||''}</div></div>${buildingBadge}</div>`;
+  const clockHtml = `<div id="headerClock"><div id="clockDate"></div><div id="clockTime"></div></div>`;
+  return `<div class="topbar"><div><div class="page-title">${title}</div><div class="page-desc">${desc||''}</div></div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">${buildingBadge}${clockHtml}</div></div>`;
 }
 
 /* ---------- DASHBOARD ---------- */
