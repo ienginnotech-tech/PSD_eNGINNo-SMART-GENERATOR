@@ -110,6 +110,17 @@ tr:hover td{background:var(--surface2)}
 .tank-card.big{padding:18px 18px 36px}
 .tank-brand-tag{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--text2);
   background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-weight:700}
+
+/* ถังน้ำมันแบบมีของเหลวเคลื่อนไหว (ใช้กับ Store Tank) */
+.tank-visual-wrap{display:flex;align-items:center;gap:14px;margin-top:10px}
+.tank-visual{width:56px;height:100px;border:2px solid var(--border2);border-radius:8px 8px 4px 4px;
+  position:relative;overflow:hidden;background:var(--surface);flex-shrink:0}
+.tank-visual-liquid{position:absolute;bottom:0;left:0;right:0;transition:height .8s ease}
+.tank-visual-wave{position:absolute;top:-5px;left:0;width:200%;height:10px;background:inherit;
+  border-radius:45%;animation:tankWaveMove 3.2s linear infinite;opacity:.55}
+@keyframes tankWaveMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tank-visual-pct{position:absolute;top:4px;left:0;right:0;text-align:center;font-size:10px;color:var(--text);
+  font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .tank-group{margin-top:6px;padding-top:14px;border-top:1px dashed var(--border)}
 .tank-group:first-of-type{border-top:none;padding-top:0;margin-top:0}
 .tank-group-title{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px;
@@ -703,6 +714,44 @@ function renderDashboard() {
 }
 
 /* ---- Fuel Tank section ---- */
+// สร้างการ์ด Store Tank เดี่ยวๆ (ไม่รวม Day Tank/alerts) สำหรับใช้ในหน้าอื่นนอกจาก Dashboard เช่นหน้า Storage Fuel Control
+function renderStoreTankCardsOnly_(tankRes) {
+  if (!tankRes.ok || !(tankRes.rows || []).length) return '<div class="loading">ไม่มีข้อมูลถังสำรอง</div>';
+  const rows = tankRes.rows;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
+  const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
+  const fullKey = keys.find(k => /^full/i.test(k));
+  const actualKey = keys.find(k => /actual/i.test(k));
+  const ropKey = keys.find(k => /rop/i.test(k));
+
+  const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
+  if (!storeTanks.length) return '<div class="loading">ไม่พบ Store Tank</div>';
+
+  const statusLabel = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม' };
+  const statusClass = { ok: 'status-ok', warn: 'status-warn' };
+
+  return `<div class="grid-cards">${storeTanks.map(r => {
+    const full = parseFloat(r[fullKey]) || 0;
+    const actual = parseFloat(r[actualKey]);
+    const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
+    const st = statusOfPct(pct, true);
+    const visualColor = st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e');
+    const name = r[nameKey] || r[buildingKey] || '-';
+    return `<div class="tank-card big">
+      <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
+      <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
+      <div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, true)}</div></div>
+      <div class="tank-nums" style="margin-top:6px">
+        <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
+        <span>เต็ม: ${full.toLocaleString()} L</span>
+      </div>
+      ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/* ---- Fuel Tank section ---- */
 function scrollToTank_(code) {
   // ค้นหาแบบ "มีคำนี้อยู่ในรหัส" แทนการเทียบตรงเป๊ะ เพราะหมายเหตุอาจพิมพ์แบบย่อ
   // (เช่น "GEN-08") แต่รหัสจริงมี prefix อาคารนำหน้า (เช่น "BITEC-II-GEN-08")
@@ -721,6 +770,17 @@ function scrollToTank_(code) {
 }
 
 const BUILDING_ORDER_ = ['BITEC I', 'BITEC II', 'BTB', 'BTE', 'UBC II', 'Summer LaSalle', 'S23'];
+
+// สร้างภาพถังน้ำมันมีของเหลวเคลื่อนไหว ใช้กับ Store Tank (ทั้ง Dashboard และหน้า Storage Fuel Control)
+function renderTankVisual_(pct, color) {
+  const h = pct === null ? 0 : Math.max(0, Math.min(100, pct));
+  return `<div class="tank-visual">
+    <div class="tank-visual-pct">${pct === null ? '-' : Math.round(h) + '%'}</div>
+    <div class="tank-visual-liquid" style="height:${h}%;background:${color}">
+      <div class="tank-visual-wave"></div>
+    </div>
+  </div>`;
+}
 function buildingSortIndex_(building) {
   const idx = BUILDING_ORDER_.indexOf(displayGroupLabel_(building));
   return idx === -1 ? 999 : idx;
@@ -729,6 +789,32 @@ function buildingSortIndex_(building) {
 const DISPLAY_GROUP_MAP_ = { 'SL-P1': 'Summer LaSalle', 'SL-Campus A': 'Summer LaSalle', 'S23-Gen room': 'S23' };
 function displayGroupLabel_(building) {
   return DISPLAY_GROUP_MAP_[building] || building;
+}
+
+// เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-80% / ฟ้า80-100%)
+//             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-80% / ฟ้า80-100%)
+function statusOfPct(pct, isStore) {
+  if (pct === null) return 'ok';
+  if (isStore) return pct < 50 ? 'warn' : 'ok';
+  if (pct < 40) return 'critical';
+  if (pct < 50) return 'warn';
+  return 'ok';
+}
+
+function buildGaugeHtml_(full, actual, isStore) {
+  if (!full || full <= 0) return '<div class="tank-sub">ไม่มีข้อมูลความจุ (Full Capacity)</div>';
+  const zones = isStore
+    ? [{ w: 50, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }]
+    : [{ w: 40, color: '#f85149' }, { w: 10, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }];
+  const ticks = isStore ? [50, 80] : [40, 50, 80];
+
+  const zonesHtml = zones.map(z => `<div class="gauge-zone" style="width:${z.w}%;background:${z.color}"></div>`).join('');
+  const ticksHtml = ticks.map(t => `<span class="gauge-tick" style="left:${t}%">${t}%</span>`).join('');
+  const pct = isNaN(actual) ? null : Math.max(0, Math.min(100, (actual / full) * 100));
+  const marker = pct !== null ? `<div class="gauge-marker" style="left:${pct}%" title="คงเหลือ ${actual}"></div>` : '';
+
+  return `<div class="gauge-wrap"><div class="gauge-zones">${zonesHtml}</div>${marker}</div>
+    <div class="gauge-ticks">${ticksHtml}</div>`;
 }
 
 function renderFuelTankDashboard_(tankRes, genRes) {
@@ -775,32 +861,6 @@ function renderFuelTankDashboard_(tankRes, genRes) {
   const blinkClass = { ok: '', warn: 'blink-slow', critical: 'blink-fast', shared: '' };
   const blinkTextClass = { ok: '', warn: 'blink-text-slow', critical: 'blink-text-fast', shared: '' };
 
-  // เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-80% / ฟ้า80-100%)
-  //             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-80% / ฟ้า80-100%)
-  function statusOfPct(pct, isStore) {
-    if (pct === null) return 'ok';
-    if (isStore) return pct < 50 ? 'warn' : 'ok';
-    if (pct < 40) return 'critical';
-    if (pct < 50) return 'warn';
-    return 'ok';
-  }
-
-  function buildGaugeHtml_(full, actual, isStore) {
-    if (!full || full <= 0) return '<div class="tank-sub">ไม่มีข้อมูลความจุ (Full Capacity)</div>';
-    const zones = isStore
-      ? [{ w: 50, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }]
-      : [{ w: 40, color: '#f85149' }, { w: 10, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }];
-    const ticks = isStore ? [50, 80] : [40, 50, 80];
-
-    const zonesHtml = zones.map(z => `<div class="gauge-zone" style="width:${z.w}%;background:${z.color}"></div>`).join('');
-    const ticksHtml = ticks.map(t => `<span class="gauge-tick" style="left:${t}%">${t}%</span>`).join('');
-    const pct = isNaN(actual) ? null : Math.max(0, Math.min(100, (actual / full) * 100));
-    const marker = pct !== null ? `<div class="gauge-marker" style="left:${pct}%" title="คงเหลือ ${actual}"></div>` : '';
-
-    return `<div class="gauge-wrap"><div class="gauge-zones">${zonesHtml}</div>${marker}</div>
-      <div class="gauge-ticks">${ticksHtml}</div>`;
-  }
-
   function tankCardHtml(r, big, isStore) {
     const full = parseFloat(r[fullKey]) || 0;
     const actual = parseFloat(r[actualKey]);
@@ -825,10 +885,12 @@ function renderFuelTankDashboard_(tankRes, genRes) {
 
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, isStore);
+    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+    const tankVisualHtml = isStore ? `<div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, isStore)}</div></div>` : buildGaugeHtml_(full, actual, isStore);
     return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
-      ${buildGaugeHtml_(full, actual, isStore)}
+      ${tankVisualHtml}
       <div class="tank-nums" style="margin-top:6px">
         <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
         <span>เต็ม: ${full.toLocaleString()} L</span>
@@ -1852,7 +1914,12 @@ function renderFuel() {
     });
     tableHtml += '</tbody></table></div></div>';
 
-    el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + formHtml + tableHtml;
+    const storeTankHtml = `<div class="card">
+      <div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>
+      ${renderStoreTankCardsOnly_(tankRes)}
+    </div>`;
+
+    el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + storeTankHtml + formHtml + tableHtml;
   }).catch(err => {
     el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
       <button class="btn small ghost" onclick="renderFuel()" style="margin-left:8px">ลองใหม่</button></div>`;
