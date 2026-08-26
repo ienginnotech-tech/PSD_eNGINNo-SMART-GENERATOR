@@ -1954,9 +1954,15 @@ function doExport(moduleKey, btn) {
 
 /* ---------- SETTINGS ---------- */
 const THEME_PRESETS = {
-  orange: { name: 'Dark Orange (Default)', accent: '#ff8c00', accent2: '#e67e00', bar: 'linear-gradient(90deg,#ff8c00,#e67e00)' },
-  gray:   { name: 'Gray', accent: '#9ca3af', accent2: '#6b7280', bar: 'linear-gradient(90deg,#9ca3af,#6b7280)' },
-  blue:   { name: 'Deep Blue', accent: '#2563eb', accent2: '#1d4ed8', bar: 'linear-gradient(90deg,#2563eb,#1d4ed8)' }
+  orange: { name: 'Dark (Default)', accent: '#ff8c00', accent2: '#e67e00', border: 'rgba(255,140,0,.12)', border2: 'rgba(255,140,0,.22)', bar: 'linear-gradient(90deg,#ff8c00,#e67e00)' },
+  gray:   { name: 'Gray', accent: '#9ca3af', accent2: '#6b7280', border: 'rgba(156,163,175,.14)', border2: 'rgba(156,163,175,.26)', bar: 'linear-gradient(90deg,#9ca3af,#6b7280)' },
+  blue:   { name: 'Blue', accent: '#2563eb', accent2: '#1d4ed8', border: 'rgba(37,99,235,.14)', border2: 'rgba(37,99,235,.28)', bar: 'linear-gradient(90deg,#2563eb,#1d4ed8)' }
+};
+const FONT_SIZE_PRESETS = {
+  small:  { name: 'เล็ก', zoom: 0.9 },
+  normal: { name: 'ปกติ', zoom: 1 },
+  large:  { name: 'ใหญ่', zoom: 1.15 },
+  xlarge: { name: 'ใหญ่มาก', zoom: 1.3 }
 };
 const FONT_PRESETS = {
   courier: { name: 'Courier New', family: "'Courier New',Courier,monospace", googleFont: null },
@@ -1975,6 +1981,8 @@ function applySettings_() {
   document.documentElement.style.setProperty('--accent', theme.accent);
   document.documentElement.style.setProperty('--accent2', theme.accent2);
   document.documentElement.style.setProperty('--accent-glow', theme.accent + '30');
+  document.documentElement.style.setProperty('--border', theme.border);
+  document.documentElement.style.setProperty('--border2', theme.border2);
 
   const font = FONT_PRESETS[s.font] || FONT_PRESETS.courier;
   if (font.googleFont && !document.getElementById('gfont-link')) {
@@ -1984,6 +1992,9 @@ function applySettings_() {
     document.head.appendChild(link);
   }
   document.documentElement.style.setProperty('--font', font.family);
+
+  const fontSize = FONT_SIZE_PRESETS[s.fontSize] || FONT_SIZE_PRESETS.normal;
+  document.body.style.zoom = fontSize.zoom; // รองรับ Chrome/Edge/Safari รุ่นใหม่ - เบราว์เซอร์อื่นอาจไม่รองรับ zoom
 
   const sidebar = document.getElementById('sidebar');
   if (sidebar) sidebar.classList.toggle('compact', !!s.compactSidebar);
@@ -2010,6 +2021,14 @@ function renderSettings() {
     html += `<div class="theme-swatch${active}" style="font-family:${f.family}" onclick="setSetting_('font','${key}')">Aa<br>${f.name}</div>`;
   });
   html += `</div></div>`;
+
+  html += `<div class="card"><div class="card-title">🔍 ขนาดตัวอักษร</div><div class="option-grid">`;
+  Object.keys(FONT_SIZE_PRESETS).forEach(key => {
+    const fs = FONT_SIZE_PRESETS[key];
+    const active = (s.fontSize || 'normal') === key ? ' active' : '';
+    html += `<div class="theme-swatch${active}" style="font-size:${14 * fs.zoom}px" onclick="setSetting_('fontSize','${key}')">Aa<br><span style="font-size:11px">${fs.name}</span></div>`;
+  });
+  html += `<div style="grid-column:1/-1;font-size:11px;color:var(--text2)">* ปรับขนาดทั้งแอปพร้อมกัน รองรับ Chrome/Edge/Safari รุ่นใหม่</div></div>`;
 
   html += `<div class="card"><div class="card-title">🌐 ภาษา / Language</div>
     <select id="settingsLang" style="max-width:240px" onchange="setSetting_('lang', this.value)">
