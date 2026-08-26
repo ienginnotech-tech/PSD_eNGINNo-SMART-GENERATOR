@@ -193,6 +193,9 @@ tr:hover td{background:var(--surface2)}
 .user-status-approved{color:var(--green)}
 .user-status-rejected{color:var(--rose)}
 
+.sig-pad-wrap{border:1px dashed var(--border2);border-radius:6px;background:#1a1a1f;display:inline-block}
+.sig-pad-wrap canvas{display:block;touch-action:none;cursor:crosshair;border-radius:6px}
+
 .sidebar.compact{width:64px}
 .sidebar.compact .brand-sub,
 .sidebar.compact .brand-title,
@@ -406,6 +409,50 @@ function updateTechnicianForBuilding_(selectId, building) {
   if (!sel || sel.dataset.header === undefined && sel.dataset.dcfield === undefined) return; // อยู่โหมด "อื่นๆ" ไม่แตะ
   const matched = TECHNICIANS.find(t => t.building === building);
   if (matched) sel.value = matched.name;
+}
+
+// ===== ลายเซ็นต์ (Signature Pad) - ใช้ร่วมกันทั้ง Daily Check / Weekly / Annual =====
+function initSignaturePad_(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || canvas.dataset.initialized) return;
+  canvas.dataset.initialized = '1';
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#f0ede8';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  let drawing = false;
+
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: cx * (canvas.width / rect.width), y: cy * (canvas.height / rect.height) };
+  }
+  function start(e) { drawing = true; canvas.dataset.hasSig = '1'; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+  function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+  function end() { drawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+}
+function clearSignature_(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  canvas.dataset.hasSig = '';
+}
+function signaturePadHtml_(canvasId, width, height) {
+  return `<div class="field" style="margin-top:14px">
+    <label>ลงลายเซ็นต์</label>
+    <div class="sig-pad-wrap"><canvas id="${canvasId}" width="${width}" height="${height}"></canvas></div>
+    <button type="button" class="btn small ghost" style="margin-top:8px" onclick="clearSignature_('${canvasId}')">🗑️ ล้างลายเซ็นต์</button>
+  </div>`;
 }
 
 /* ---------- LOGIN ---------- */
@@ -1184,7 +1231,7 @@ function renderDailyCheck() {
     }
 
     // แจ้งเตือนถ้ามีบันทึกล่าสุดที่หัวหน้างานยังไม่รับทราบ
-    const unackedCount = (res.rows || []).filter(r => !String(r['หัวหน้างานรับทราบ'] || '').trim()).length;
+    const unackedCount = (res.rows || []).filter(r => !String(r['หัวหน้างานพิจารณา'] || '').trim()).length;
     const supervisorAlertHtml = unackedCount > 0
       ? `<div class="card blink-slow" style="border-color:var(--amber)">
           <div class="blink-text-slow" style="color:var(--amber);font-weight:700">
@@ -1242,18 +1289,24 @@ function renderDailyCheck() {
       </div>
     </div>
     <div class="card">
-      <div class="card-title">✍️ การรับทราบของหัวหน้างาน (แยกจากช่างผู้ตรวจสอบ)</div>
+      <div class="card-title">👔 หัวหน้าพิจารณา</div>
       <div class="form-grid">
         <div class="field">
-          <label>หัวหน้างานรับทราบหรือยัง?</label>
-          <select id="dc_sup_ack" data-dcfield="หัวหน้างานรับทราบ" onchange="toggleSupervisorAck_(this)">
-            <option value="">— ยังไม่รับทราบ —</option>
-            <option value="รับทราบ">✅ รับทราบแล้ว</option>
+          <label>หัวหน้างานพิจารณา</label>
+          <select id="dc_sup_ack" data-dcfield="หัวหน้างานพิจารณา" onchange="toggleSupervisorAck_(this)">
+            <option value="">— ยังไม่พิจารณา —</option>
+            <option value="อนุมัติ">✅ อนุมัติ</option>
+            <option value="ไม่อนุมัติ">❌ ไม่อนุมัติ</option>
           </select>
         </div>
-        <div class="field"><label>ลงลายเซ็นต์ / ชื่อหัวหน้างาน</label><input id="dc_sup_name" data-dcfield="ลายเซ็นต์หัวหน้างาน"></div>
+        <div class="field" id="dc_sup_detail_wrap" style="display:none">
+          <label>รายละเอียดเพิ่มเติม (กรณีไม่อนุมัติ)</label>
+          <input id="dc_sup_detail" data-dcfield="รายละเอียดเพิ่มเติม (หัวหน้า)">
+        </div>
+        <div class="field"><label>หัวหน้างานลงชื่อ</label><input id="dc_sup_name" data-dcfield="หัวหน้างานลงชื่อ"></div>
         <div class="field"><label>วันที่หัวหน้างานลงนาม</label><input type="date" id="dc_sup_date" data-dcfield="วันที่หัวหน้างานลงนาม" data-type="date"></div>
       </div>
+      ${signaturePadHtml_('dc_sup_sigpad', 460, 150)}
       <button class="btn" style="margin-top:14px" onclick="submitDailyCheck_()">✓ บันทึกผลตรวจสอบ</button>
       <span id="dcSubmitMsg" style="margin-left:12px;font-size:12px"></span>
     </div></div>`;
@@ -1271,18 +1324,21 @@ function renderDailyCheck() {
     tableHtml += '</tbody></table></div></div>';
 
     el.innerHTML = pageHeader('✅ Daily Check', 'ตรวจสอบความพร้อมเครื่องกำเนิดไฟฟ้าประจำวัน') + formHtml + tableHtml;
+    initSignaturePad_('dc_sup_sigpad');
   }).catch(err => {
     el.innerHTML = pageHeader('✅ Daily Check', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
       <button class="btn small ghost" onclick="renderDailyCheck()" style="margin-left:8px">ลองใหม่</button></div>`;
   });
 }
 
-// พอหัวหน้างานเลือก "รับทราบแล้ว" -> เติมวันที่วันนี้ให้อัตโนมัติ (ยังแก้ไขเองได้)
+// พอหัวหน้างานเลือกผล "อนุมัติ/ไม่อนุมัติ" -> เติมวันที่วันนี้ให้อัตโนมัติ + โชว์ช่องรายละเอียดถ้าเลือก "ไม่อนุมัติ"
 function toggleSupervisorAck_(selectEl) {
   const dateEl = document.getElementById('dc_sup_date');
-  if (selectEl.value === 'รับทราบ' && dateEl && !dateEl.value) {
+  if (selectEl.value && dateEl && !dateEl.value) {
     dateEl.value = new Date().toISOString().slice(0, 10);
   }
+  const detailWrap = document.getElementById('dc_sup_detail_wrap');
+  if (detailWrap) detailWrap.style.display = selectEl.value === 'ไม่อนุมัติ' ? 'block' : 'none';
 }
 
 function applyDcGenPreset_(selectEl) {
@@ -1330,6 +1386,10 @@ function submitDailyCheck_() {
     .then(results => {
       const photos = {};
       results.forEach(r => { if (r.data) photos[r.item] = r.data; });
+      const sigCanvas = document.getElementById('dc_sup_sigpad');
+      if (sigCanvas && sigCanvas.dataset.hasSig === '1') {
+        photos['SUPERVISOR_SIGNATURE'] = { base64: sigCanvas.toDataURL('image/png'), mimeType: 'image/png' };
+      }
       const buildingCode = values['Building'];
       return callApi('submitDailyCheck', { buildingCode, values, photos });
     })
@@ -1377,12 +1437,18 @@ function groupOf_(header) {
   if (/^running\s*:|start running time|stop running time/i.test(h)) return 'ระหว่างทดสอบ (Running)';
   if (/^after\s*(test)?\s*:/i.test(h)) return 'หลังทดสอบ (After Test)';
   if (/test load|load generator|testing period|summarize/i.test(h)) return 'สรุปผล Load Test';
-  if (/หัวหน้า/i.test(h)) return 'การรับทราบของหัวหน้างาน'; // แยก module ไม่ปนกับช่างผู้ทดสอบ
+  if (/หัวหน้า/i.test(h)) return 'หัวหน้าพิจารณา'; // แยก module ไม่ปนกับช่างผู้ทดสอบ
   if (/สภาพโดยทั่วไป|availability|ช่างผู้ทดสอบ|checked by|signature/i.test(h)) return 'สรุปผลตรวจ / ผู้บันทึก';
   return 'ข้อมูลอื่นๆ';
 }
 
 const PERIOD_OPTIONS = ['Week', 'Month', 'Quarter', 'Annual', 'Emergency', 'PM'];
+
+// เปลี่ยนข้อความ label ที่แสดงผลให้อ่านง่ายขึ้น โดยไม่แตะชื่อคอลัมน์จริงในชีต (ยังใช้ header เดิม submit ตามปกติ)
+function friendlyLabel_(h) {
+  if (/^หัวหน้าตรวจสอบ$/i.test(h.trim())) return 'หัวหน้างานลงชื่อ';
+  return h;
+}
 let PM_GEN_MAP = {}; // code -> {company, building, code}
 
 function renderPmForm(period, presetGenerator) {
@@ -1465,7 +1531,7 @@ function renderPmForm(period, presetGenerator) {
         }
 
         if (/^period$/i.test(h.trim())) {
-          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
             <select id="${inputId}" data-header="${escAttr(h)}">
               <option value=""></option>
               ${PERIOD_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join('')}
@@ -1476,14 +1542,14 @@ function renderPmForm(period, presetGenerator) {
         // ช่องวันที่ -> ใช้ date picker ของ browser แล้วแปลงเป็น dd/mm/yyyy ตอนบันทึก
         if (/^date$|วันที่/i.test(h.trim()) && !/update|start|stop|finish/i.test(h)) {
           const todayIso = new Date().toISOString().slice(0, 10);
-          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
             <input type="date" id="${inputId}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
           return;
         }
 
         // ช่อง Start/Stop Running Time -> ใช้ time picker เปล่า ให้ช่างระบุเวลาเองตอนสตาร์ท/หยุดเครื่องจริง (ไม่ auto-fill)
         if (/start running time|stop running time/i.test(h)) {
-          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
             <input type="time" id="${inputId}" data-header="${escAttr(h)}"></div>`;
           return;
         }
@@ -1497,18 +1563,22 @@ function renderPmForm(period, presetGenerator) {
 
         const analysis = analyzeField_(h);
         if (analysis.type === 'select') {
-          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
             <select id="${inputId}" data-header="${escAttr(h)}">
               <option value=""></option>
               ${analysis.options.map(o => `<option value="${escAttr(o)}">${escHtml(o)}</option>`).join('')}
             </select></div>`;
         } else {
           const hintAttr = analysis.hint ? ` placeholder="เช่น ${escAttr(analysis.hint)}"` : '';
-          formHtml += `<div class="field"><label>${escHtml(h)}</label>
+          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
             <input id="${inputId}" data-header="${escAttr(h)}" value="${escAttr(preset)}"${hintAttr}></div>`;
         }
       });
-      formHtml += '</div></div>';
+      formHtml += '</div>';
+      if (g === 'หัวหน้าพิจารณา') {
+        formHtml += signaturePadHtml_('pm_sup_sigpad', 460, 150);
+      }
+      formHtml += '</div>';
     });
 
     formHtml = `<div id="pmFormWrap">${supervisorAlertHtml}${genPickerHtml}${formHtml}
@@ -1530,6 +1600,7 @@ function renderPmForm(period, presetGenerator) {
     tableHtml += '</tbody></table></div></div>';
 
     el.innerHTML = pageHeader(title, 'บันทึกผลตรวจสอบเครื่องกำเนิดไฟฟ้า') + formHtml + tableHtml;
+    initSignaturePad_('pm_sup_sigpad');
   }).catch(err => {
     el.innerHTML = pageHeader(title, '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
       <button class="btn small ghost" onclick="renderPmForm('${period}')" style="margin-left:8px">ลองใหม่</button></div>`;
@@ -1569,8 +1640,15 @@ function submitPm(period) {
     if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = val;
   });
   const msg = document.getElementById('pmSubmitMsg');
-  msg.textContent = 'กำลังบันทึก...';
-  callApi('submitPmRecord', { period, buildingCode, values }).then(res => {
+  msg.textContent = 'กำลังบันทึก (รอสักครู่ถ้ามีลายเซ็นต์)...';
+
+  const sigCanvas = document.getElementById('pm_sup_sigpad');
+  let signature = null;
+  if (sigCanvas && sigCanvas.dataset.hasSig === '1') {
+    signature = { base64: sigCanvas.toDataURL('image/png'), mimeType: 'image/png' };
+  }
+
+  callApi('submitPmRecord', { period, buildingCode, values, signature }).then(res => {
     msg.textContent = res.ok ? '✓ บันทึกสำเร็จ' : ('✕ ' + res.error);
     msg.style.color = res.ok ? 'var(--green)' : 'var(--rose)';
     if (res.ok) setTimeout(() => renderPmForm(period), 1200);
