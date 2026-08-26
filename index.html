@@ -35,6 +35,7 @@ button,input,select,textarea{font-family:var(--font)}
 .login-sub{font-size:12px;color:var(--text2);margin-bottom:24px}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.label-th{display:block;text-transform:none;color:#c9a876;font-size:11px;margin-top:2px;letter-spacing:normal}
 .field input,.field select{width:100%;padding:10px 12px;background:var(--surface2);
   border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px}
 .field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
@@ -1281,17 +1282,33 @@ function renderDailyCheck() {
       </div>
       <div class="card"><div class="card-title">รายการตรวจสอบ (อย่างน้อย 10 หัวข้อ)</div><div class="form-grid">`;
 
+    // คำแปลไทยของแต่ละหัวข้อ (แก้ไข/เพิ่มได้ที่นี่จุดเดียว) แสดงใต้ภาษาอังกฤษให้ช่างอ่านง่ายขึ้น
+    const DAILY_CHECK_ITEM_TH = {
+      'AUTO MODE': 'โหมดอัตโนมัติ',
+      'CB ON': 'เบรกเกอร์ทำงาน',
+      'EMERGENCY BUTTON': 'ปุ่มฉุกเฉิน',
+      'NO ALARM': 'ไม่มีสัญญาณเตือน',
+      'NO LUBRICANT LEAK': 'ไม่มีน้ำมันหล่อลื่นรั่วไหล',
+      'NO FUEL OIL LEAK': 'ไม่มีน้ำมันเชื้อเพลิงรั่วไหล',
+      'CHARGER': 'เครื่องชาร์จแบตเตอรี่',
+      'BATTERY': 'แบตเตอรี่',
+      'COOLANT LEVEL': 'ระดับน้ำหล่อเย็น',
+      'GENERAL CLEANLINESS / ENCLOSURE': 'ความสะอาดทั่วไป / ตู้ครอบเครื่อง',
+      'FUEL LEVEL': 'ระดับน้ำมันเชื้อเพลิง'
+    };
+    const itemLabelHtml = item => `${escHtml(item)}${DAILY_CHECK_ITEM_TH[item] ? '<br><span class="label-th">' + escHtml(DAILY_CHECK_ITEM_TH[item]) + '</span>' : ''}`;
+
     items.forEach(item => {
       const id = 'dcitem_' + cssId(item);
       if (item === 'FUEL LEVEL') {
         formHtml += `<div class="field">
-          <label>${escHtml(item)} (ลิตร)</label>
+          <label>${itemLabelHtml(item)} (ลิตร)</label>
           <input type="number" id="${id}_val" data-dcitem="${escAttr(item)}" data-dctype="value" placeholder="เช่น 425">
           <input type="file" accept="image/*" capture="environment" id="${id}_photo" data-dcitem="${escAttr(item)}" style="margin-top:6px;font-size:11px">
         </div>`;
       } else {
         formHtml += `<div class="field">
-          <label>${escHtml(item)}</label>
+          <label>${itemLabelHtml(item)}</label>
           <select id="${id}_val" data-dcitem="${escAttr(item)}" data-dctype="status">
             <option value="ปกติ">🟢 ปกติ</option>
             <option value="ผิดปกติ">🔴 ผิดปกติ</option>
@@ -1482,6 +1499,19 @@ function friendlyLabel_(h) {
   if (/^หัวหน้าตรวจสอบ$/i.test(h.trim())) return 'หัวหน้างานลงชื่อ';
   return h;
 }
+
+// แยก label ที่มีทั้งอังกฤษ+ไทยปนกัน ("BEFORE : OIL LEVEL บันทึกระดับน้ำมัน (LO/HI)") ให้ไทยขึ้นบรรทัดใหม่ใต้อังกฤษ อ่านง่ายขึ้น
+function splitLabelLines_(header) {
+  const m = header.match(/[\u0E00-\u0E7F]/);
+  if (!m) return { en: header, th: '' };
+  const idx = m.index;
+  return { en: header.slice(0, idx).trim(), th: header.slice(idx).trim() };
+}
+function renderFieldLabelHtml_(h) {
+  const friendly = friendlyLabel_(h);
+  const { en, th } = splitLabelLines_(friendly);
+  return th ? `${escHtml(en)}<br><span class="label-th">${escHtml(th)}</span>` : escHtml(en);
+}
 let PM_GEN_MAP = {}; // code -> {company, building, code}
 
 function renderPmForm(period, presetGenerator) {
@@ -1578,7 +1608,7 @@ function renderPmForm(period, presetGenerator) {
         }
 
         if (/^period$/i.test(h.trim())) {
-          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
+          formHtml += `<div class="field"><label>${renderFieldLabelHtml_(h)}</label>
             <select id="${inputId}" data-header="${escAttr(h)}">
               <option value=""></option>
               ${PERIOD_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join('')}
@@ -1589,14 +1619,14 @@ function renderPmForm(period, presetGenerator) {
         // ช่องวันที่ -> ใช้ date picker ของ browser แล้วแปลงเป็น dd/mm/yyyy ตอนบันทึก
         if (/^date$|วันที่/i.test(h.trim()) && !/update|start|stop|finish/i.test(h)) {
           const todayIso = new Date().toISOString().slice(0, 10);
-          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
+          formHtml += `<div class="field"><label>${renderFieldLabelHtml_(h)}</label>
             <input type="date" id="${inputId}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
           return;
         }
 
         // ช่อง Start/Stop Running Time -> ใช้ time picker เปล่า ให้ช่างระบุเวลาเองตอนสตาร์ท/หยุดเครื่องจริง (ไม่ auto-fill)
         if (/start running time|stop running time/i.test(h)) {
-          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
+          formHtml += `<div class="field"><label>${renderFieldLabelHtml_(h)}</label>
             <input type="time" id="${inputId}" data-header="${escAttr(h)}"></div>`;
           return;
         }
@@ -1610,14 +1640,14 @@ function renderPmForm(period, presetGenerator) {
 
         const analysis = analyzeField_(h);
         if (analysis.type === 'select') {
-          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
+          formHtml += `<div class="field"><label>${renderFieldLabelHtml_(h)}</label>
             <select id="${inputId}" data-header="${escAttr(h)}">
               <option value=""></option>
               ${analysis.options.map(o => `<option value="${escAttr(o)}">${escHtml(o)}</option>`).join('')}
             </select></div>`;
         } else {
           const hintAttr = analysis.hint ? ` placeholder="เช่น ${escAttr(analysis.hint)}"` : '';
-          formHtml += `<div class="field"><label>${escHtml(friendlyLabel_(h))}</label>
+          formHtml += `<div class="field"><label>${renderFieldLabelHtml_(h)}</label>
             <input id="${inputId}" data-header="${escAttr(h)}" value="${escAttr(preset)}"${hintAttr}></div>`;
         }
       });
