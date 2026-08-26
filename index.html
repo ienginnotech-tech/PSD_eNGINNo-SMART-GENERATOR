@@ -97,7 +97,7 @@ tr:hover td{background:var(--surface2)}
 .gen-meta{font-size:11px;color:var(--text2);margin-top:3px}
 .tag{display:inline-block;padding:2px 8px;border:1px solid var(--border2);border-radius:12px;font-size:10px;color:var(--accent)}
 
-.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .qr-box{background:#fff;padding:10px;border-radius:6px;display:inline-block}
 .hidden{display:none !important}
 .badge{background:var(--rose);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px}
@@ -215,6 +215,7 @@ tr:hover td{background:var(--surface2)}
   .sidebar.open{transform:translateX(0)}
   .main{margin-left:0;padding:16px}
   #menuBtn{display:block !important}
+  .form-grid{grid-template-columns:1fr}
 }
 #menuBtn{display:none;background:var(--surface2);border:1px solid var(--border2);color:var(--text);
   padding:8px 12px;border-radius:var(--r);cursor:pointer;margin-bottom:10px}
@@ -1445,7 +1446,14 @@ function analyzeField_(header) {
   }
   // กรณีมี / และไม่ใช่ตัวเลขล้วน -> เป็นตัวเลือกให้เลือก (dropdown)
   if (hasSlash) {
-    const opts = content.split('/').map(s => s.trim()).filter(Boolean);
+    let opts = content.split('/').map(s => s.trim()).filter(Boolean);
+    // กรณี "Lo/Mid/Hi Level" -> ตัวเลือกสุดท้ายติดคำว่า "Level" มาด้วย ต้องตัดออกให้เหลือแค่ "Hi"
+    opts = opts.map((o, i) => {
+      if (i === opts.length - 1 && opts.length > 1) {
+        return o.replace(/\s*(level|ระดับ)\s*$/i, '').trim() || o;
+      }
+      return o;
+    });
     const looksLikeOptions = opts.length >= 2 && opts.length <= 6 && opts.every(o => o.length <= 25 && !/^\d+$/.test(o));
     if (looksLikeOptions) return { type: 'select', options: opts, hint: '' };
   }
