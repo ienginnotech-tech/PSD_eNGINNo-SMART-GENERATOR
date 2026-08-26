@@ -110,6 +110,7 @@ tr:hover td{background:var(--surface2)}
 .tank-card.big{padding:18px 18px 36px}
 .tank-brand-tag{position:absolute;bottom:10px;right:12px;font-size:10px;color:var(--text2);
   background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-weight:700}
+.tank-inspector{font-size:11px;color:var(--text2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
 
 /* ถังน้ำมันแบบมีของเหลวเคลื่อนไหว (ใช้กับ Store Tank) */
 .tank-visual-wrap{display:flex;align-items:center;gap:14px;margin-top:10px}
@@ -378,6 +379,16 @@ const TECHNICIANS = [
   { building: 'UBC II',       name: 'นายภาณุพงศ์ ปรุงเรณุ', empId: '21000171', dept: 'Property Management',       position: 'Technician' },
   { building: 'BTE',          name: 'นายเสรี การะวงค์', empId: '21000037', dept: 'ENS',                       position: 'Technical Supervisor' }
 ];
+
+// ผู้รับผิดชอบถังน้ำมันสำรองส่วนกลาง (Storage Tank 1-2) แยกจากช่างประจำแต่ละอาคาร
+const STORAGE_TANK_INSPECTOR = 'นายพลวัฒน์ ก้องกังวาลย์';
+
+// คืนชื่อผู้ตรวจสอบล่าสุดที่ควรแสดงบนการ์ดถัง: Store Tank -> ผู้ดูแลส่วนกลาง, Day Tank -> ช่างประจำอาคารนั้น
+function tankInspectorName_(building, isStore) {
+  if (isStore) return STORAGE_TANK_INSPECTOR;
+  const t = TECHNICIANS.find(t => t.building === building);
+  return t ? t.name : '';
+}
 
 // สร้างตัวเลือก dropdown ช่างที่รับผิดชอบ กรองเฉพาะอาคารที่ระบุ (ถ้าไม่มีคนตรงอาคาร หรือยังไม่รู้อาคาร -> โชว์ทั้งหมดแทน)
 function techOptionsForBuilding_(building) {
@@ -750,12 +761,14 @@ function renderDayTankCardsForSession_(tankRes) {
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, false);
     const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+    const inspector = tankInspectorName_(r[buildingKey], false);
     return `<div class="tank-card">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClassD[st]}">${statusLabelD[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
       <div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, false)}</div></div>
       <div class="tank-nums" style="margin-top:6px"><span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span><span>เต็ม: ${full.toLocaleString()} L</span></div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+      ${inspector ? `<div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(inspector)}</div>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -793,6 +806,7 @@ function renderStoreTankCardsOnly_(tankRes) {
         <span>เต็ม: ${full.toLocaleString()} L</span>
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+      <div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(STORAGE_TANK_INSPECTOR)}</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -921,10 +935,12 @@ function renderFuelTankDashboard_(tankRes, genRes) {
       const linksHtml = refCodes.length
         ? refCodes.map(c => `<span class="shared-link" onclick="scrollToTank_('${escAttr(c)}')">${escHtml(c)}</span>`).join(', ')
         : '';
+      const inspectorShared = tankInspectorName_(r[buildingKey], isStore);
       return `<div class="tank-card${big ? ' big' : ''}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
         <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass.shared}">${statusLabel.shared}</span></div>
         <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
         <div class="shared-note">📌 ${escHtml(note)}${linksHtml ? '<br>ดูถังจริงที่: ' + linksHtml : ''}</div>
+        ${inspectorShared ? `<div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(inspectorShared)}</div>` : ''}
         ${brandTag}
       </div>`;
     }
@@ -933,6 +949,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     const st = statusOfPct(pct, isStore);
     const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
     const tankVisualHtml = `<div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, isStore)}</div></div>`;
+    const inspector = tankInspectorName_(r[buildingKey], isStore);
     return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
@@ -943,6 +960,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
       ${note ? `<div class="shared-note">📌 ${escHtml(note)}</div>` : ''}
+      ${inspector ? `<div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(inspector)}</div>` : ''}
       ${brandTag}
     </div>`;
   }
