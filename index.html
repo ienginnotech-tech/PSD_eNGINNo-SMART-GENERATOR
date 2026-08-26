@@ -714,6 +714,52 @@ function renderDashboard() {
 }
 
 /* ---- Fuel Tank section ---- */
+// การ์ด Day Tank เฉพาะอาคารของบัญชีที่ login อยู่ (ใช้ในหน้า Storage Fuel Control ให้เห็นถังของอาคารตัวเองด้วย)
+function renderDayTankCardsForSession_(tankRes) {
+  if (!tankRes.ok || !(tankRes.rows || []).length) return '';
+  const rows = tankRes.rows;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const buildingKey = keys.find(k => /building|อาคาร/i.test(k));
+  const nameKey = keys.find(k => /generator no|name|ชื่อ/i.test(k));
+  const fullKey = keys.find(k => /^full/i.test(k));
+  const actualKey = keys.find(k => /actual/i.test(k));
+  const ropKey = keys.find(k => /rop/i.test(k));
+  const noteKey = keys.find(k => /หมายเหตุ|^note/i.test(k));
+
+  const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
+  let dayTanks = rows.filter(r => !storeTanks.includes(r));
+
+  if (SESSION && SESSION.role !== 'admin' && SESSION.buildingCode !== 'ALL') {
+    const codes = String(SESSION.buildingCode).split(',').map(s => s.trim());
+    dayTanks = dayTanks.filter(r => codes.includes(String(r[buildingKey] || '').trim()));
+  }
+  if (!dayTanks.length) return '';
+
+  const statusLabelD = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด', shared: '🔗 ใช้ถังร่วม' };
+  const statusClassD = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger', shared: 'status-shared' };
+
+  return `<div class="grid-cards">${dayTanks.map(r => {
+    const full = parseFloat(r[fullKey]) || 0;
+    const actual = parseFloat(r[actualKey]);
+    const note = noteKey ? String(r[noteKey] || '').trim() : '';
+    const name = r[nameKey] || r[buildingKey] || '-';
+    if ((!full || full <= 0) && note) {
+      return `<div class="tank-card"><div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClassD.shared}">${statusLabelD.shared}</span></div>
+        <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div><div class="shared-note">📌 ${escHtml(note)}</div></div>`;
+    }
+    const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
+    const st = statusOfPct(pct, false);
+    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+    return `<div class="tank-card">
+      <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClassD[st]}">${statusLabelD[st]}</span></div>
+      <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
+      <div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, false)}</div></div>
+      <div class="tank-nums" style="margin-top:6px"><span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span><span>เต็ม: ${full.toLocaleString()} L</span></div>
+      ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 // สร้างการ์ด Store Tank เดี่ยวๆ (ไม่รวม Day Tank/alerts) สำหรับใช้ในหน้าอื่นนอกจาก Dashboard เช่นหน้า Storage Fuel Control
 function renderStoreTankCardsOnly_(tankRes) {
   if (!tankRes.ok || !(tankRes.rows || []).length) return '<div class="loading">ไม่มีข้อมูลถังสำรอง</div>';
@@ -886,7 +932,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, isStore);
     const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
-    const tankVisualHtml = isStore ? `<div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, isStore)}</div></div>` : buildGaugeHtml_(full, actual, isStore);
+    const tankVisualHtml = `<div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, isStore)}</div></div>`;
     return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]} ${blinkTextClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
@@ -1918,8 +1964,12 @@ function renderFuel() {
       <div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>
       ${renderStoreTankCardsOnly_(tankRes)}
     </div>`;
+    const dayTankOwnHtml = renderDayTankCardsForSession_(tankRes);
+    const dayTankSectionHtml = dayTankOwnHtml
+      ? `<div class="card"><div class="card-title">🔧 สถานะถังน้ำมันประจำเครื่อง (อาคารของคุณ)</div>${dayTankOwnHtml}</div>`
+      : '';
 
-    el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + storeTankHtml + formHtml + tableHtml;
+    el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', 'Weekly Test Run / Refuel / Emergency Use') + storeTankHtml + dayTankSectionHtml + formHtml + tableHtml;
   }).catch(err => {
     el.innerHTML = pageHeader('บันทึกเชื้อเพลิง', '') + `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
       <button class="btn small ghost" onclick="renderFuel()" style="margin-left:8px">ลองใหม่</button></div>`;
