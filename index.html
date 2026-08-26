@@ -1217,6 +1217,13 @@ function renderSopFlow() {
 }
 let DC_GEN_MAP = {};
 
+// คืนค่าอาคาร "หลัก" ของบัญชีที่ login อยู่ (ใช้ pre-filter dropdown ช่างก่อนเลือกเครื่องด้วยซ้ำ)
+// admin หรือบัญชีเข้าถึงได้ทุกอาคาร -> คืนค่าว่าง (โชว์ช่างทุกคน)
+function sessionDefaultBuilding_() {
+  if (!SESSION || SESSION.role === 'admin' || SESSION.buildingCode === 'ALL') return '';
+  return String(SESSION.buildingCode).split(',')[0].trim();
+}
+
 function renderDailyCheck() {
   const el = document.getElementById('pageContent');
   el.innerHTML = pageHeader('✅ Daily Check', 'ตรวจสอบความพร้อมเครื่องกำเนิดไฟฟ้าประจำวัน') + '<div class="loading">กำลังโหลด...</div>';
@@ -1264,11 +1271,11 @@ function renderDailyCheck() {
       <div class="card">
         <div class="card-title">ข้อมูลทั่วไป</div>
         <div class="form-grid">
-          <div class="field"><label>Building</label><input id="dc_building" data-dcfield="Building"></div>
+          <div class="field"><label>Building</label><input id="dc_building" data-dcfield="Building" value="${escAttr(sessionDefaultBuilding_())}"></div>
           <div class="field"><label>Code</label><input id="dc_code" data-dcfield="Code"></div>
           <div class="field"><label>Date</label><input type="date" id="dc_date" data-dcfield="Date" value="${todayIso}" data-type="date"></div>
           <div class="field"><label>เวลา (ตรวจสอบ ณ เวลานี้)</label><input type="time" id="dc_time" data-dcfield="เวลา" value="${nowTime}"></div>
-          ${renderTechnicianFieldHtml_('ผู้ตรวจสอบ', 'data-dcfield', 'ผู้ตรวจสอบ', 'dc_inspector', '')}
+          ${renderTechnicianFieldHtml_('ผู้ตรวจสอบ', 'data-dcfield', 'ผู้ตรวจสอบ', 'dc_inspector', sessionDefaultBuilding_())}
         </div>
       </div>
       <div class="card"><div class="card-title">รายการตรวจสอบ (อย่างน้อย 10 หัวข้อ)</div><div class="form-grid">`;
@@ -1588,7 +1595,7 @@ function renderPmForm(period, presetGenerator) {
 
         // ช่องผู้ตรวจสอบ/ผู้ทดสอบ -> ใช้ dropdown รายชื่อช่างที่รับผิดชอบแทนพิมพ์เอง
         if (/ผู้ตรวจสอบ|ผู้ทดสอบ|ช่างผู้ทดสอบ|inspector|checked\s*by/i.test(h)) {
-          const buildingGuess = presetGenerator ? (presetGenerator[Object.keys(presetGenerator).find(k=>/building|อาคาร/i.test(k))] || '') : '';
+          const buildingGuess = presetGenerator ? (presetGenerator[Object.keys(presetGenerator).find(k=>/building|อาคาร/i.test(k))] || '') : sessionDefaultBuilding_();
           formHtml += renderTechnicianFieldHtml_(h, 'data-header', h, inputId, buildingGuess);
           return;
         }
