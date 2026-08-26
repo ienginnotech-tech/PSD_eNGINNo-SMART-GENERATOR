@@ -1523,7 +1523,7 @@ function renderPmForm(period, presetGenerator) {
     if (!bundle.ok) { el.innerHTML = pageHeader(title, '') + `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(bundle.error || 'ไม่ทราบสาเหตุ')} <button class="btn small ghost" onclick="renderPmForm('${period}')" style="margin-left:8px">ลองใหม่</button></div>`; return; }
     const res = bundle.pm, genRes = bundle.gen;
     const headers = (res.headers || []).filter(h => h);
-    const skipPatterns = /^(Result|ผลลัพท์)/i; // ซ่อนคอลัมน์ผลลัพท์อัตโนมัติ (เติมค่า 1 อัตโนมัติ ไม่ต้องกรอก)
+    const skipPatterns = /^(Result|ผลลัพท์)|availability|เปอร์เซ็นต์ความพร้อม/i; // ซ่อนคอลัมน์ผลลัพท์/สูตรคำนวณอัตโนมัติ ไม่ต้องกรอก
 
     // เตรียม dropdown เลือกเครื่องกำเนิดไฟฟ้า (auto-fill Company/Building/Code)
     let genPickerHtml = '';
