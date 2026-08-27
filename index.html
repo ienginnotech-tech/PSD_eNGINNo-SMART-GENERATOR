@@ -92,14 +92,15 @@ tr:hover td{background:var(--surface2)}
 .stat-num{font-size:26px;font-weight:800;color:var(--accent)}
 .stat-label{font-size:11px;color:var(--text2);margin-top:4px}
 
-.tr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.tr-block{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;font-size:12px}
+.tr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.tr-block{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.5}
 .tr-block-title{font-weight:600;margin-bottom:4px;color:var(--text2)}
 .tr-count{font-weight:400;color:var(--text2)}
 .tr-block-row{margin-top:2px}
 .tr-empty{color:var(--text2);font-style:italic}
 .tr-clickable{cursor:pointer;transition:.15s}
 .tr-clickable:hover{border-color:var(--accent);background:rgba(255,140,0,.06)}
+.tr-machine-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
 @media (max-width:520px){.tr-grid{grid-template-columns:1fr}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:flex;
   align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
@@ -1442,7 +1443,7 @@ function renderTestReportBody_(res, dateFrom, dateTo) {
     html += `<div class="nav-section-label" style="margin-top:18px">
         <span class="nav-section-dot" style="background:#a78bfa"></span>${escHtml(group.building)} (${group.machines.length} เครื่อง)
       </div>
-      <div class="grid-cards">`;
+      <div class="tr-machine-grid">`;
     group.machines.forEach(m => {
       html += `<div class="card">
         <div class="gen-name">${escHtml(m.name)}</div>
