@@ -101,11 +101,12 @@ tr:hover td{background:var(--surface2)}
 .tr-clickable{cursor:pointer;transition:.15s}
 .tr-clickable:hover{border-color:var(--accent);background:rgba(255,140,0,.06)}
 .tr-machine-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
-.cap-chart-card{background:#ffffff;color:#0f172a;border-radius:8px;padding:18px;display:flex;gap:22px;flex-wrap:wrap;flex:1;min-width:420px;border:1px solid var(--border2)}
+.cap-chart-card{background:#ffffff;color:#0f172a;border-radius:8px;padding:18px;display:flex;gap:22px;flex-wrap:wrap;border:1px solid var(--border2);margin-bottom:16px}
 .cap-chart-col{flex:1;min-width:150px}
 .cap-chart-col-title{font-weight:700;font-size:13px;text-align:center;margin-bottom:2px;color:#0f172a}
 .cap-chart-col-total{font-weight:800;font-size:19px;text-align:center;margin-bottom:12px;color:#0f172a}
-.cap-subgroup{margin-bottom:14px}
+.cap-subgroup-row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+.cap-subgroup{margin-bottom:0}
 .cap-subgroup-title{font-weight:600;font-size:11.5px;color:#334155;margin-bottom:6px;text-align:center}
 .cap-bars-row{display:flex;gap:8px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
 .cap-bar-col{display:flex;flex-direction:column;align-items:center;width:60px}
@@ -929,12 +930,15 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
     return { label: label || r[nameKey] || '-', full, actual, pct };
   }
 
-  const storageBars = storeTanks.map((r, i) => tankBar(r, 'Store ' + (i + 1)));
+  // ข้ามแถวที่ไม่มีความจุจริง (full <= 0) — กันเครื่องทดสอบ/ข้อมูลค้าง (เช่น "TEST GEN") มาทำให้กราฟรกและสูงเกินจำเป็น
+  const hasCapacity_ = r => (parseFloat(r[fullKey]) || 0) > 0;
+
+  const storageBars = storeTanks.filter(hasCapacity_).map((r, i) => tankBar(r, 'Store ' + (i + 1)));
 
   // คอลัมน์ BITEC: sub-group ตามอาคารจริง (BITEC I / BITEC II / BTB) เรียงตามลำดับที่กำหนด
   const bitecSub = {};
   const bitecOrder = [];
-  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) !== -1).forEach(r => {
+  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) !== -1 && hasCapacity_(r)).forEach(r => {
     const b = r[buildingKey];
     if (!bitecSub[b]) { bitecSub[b] = []; bitecOrder.push(b); }
     bitecSub[b].push(tankBar(r));
@@ -945,7 +949,7 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
   // รวม SL-P1 + SL-Campus A เป็น "SLS" กลุ่มเดียว เหมือนที่ Day Tank ด้านล่างใช้อยู่แล้ว
   const offSub = {};
   const offOrder = [];
-  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) === -1).forEach(r => {
+  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) === -1 && hasCapacity_(r)).forEach(r => {
     const grouped = displayGroupLabel_(r[buildingKey]);
     const label = grouped === 'Summer LaSalle' ? 'SLS' : grouped;
     if (!offSub[label]) { offSub[label] = []; offOrder.push(label); }
@@ -960,7 +964,7 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
     .concat(bitecOrder.reduce((acc, b) => acc.concat(bitecSub[b]), []))
     .concat(offOrder.reduce((acc, b) => acc.concat(offSub[b]), []));
   const maxFull = Math.max(1, ...allBars.map(b => b.full));
-  const MAX_BAR_H = 170;
+  const MAX_BAR_H = 130; // ลดจาก 170 -> 130 ให้ทั้งผังดูเตี้ยลง กระชับขึ้น ตอนนี้มีความกว้างเต็มหน้าจอมาช่วยแล้ว
 
   function barHtml(b) {
     const h = Math.max(24, Math.round((b.full / maxFull) * MAX_BAR_H));
@@ -987,20 +991,20 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
   const offTotalCap = offOrder.reduce((s, b) => s + sumFull(offSub[b]), 0);
 
   return `<div class="cap-chart-card">
-    <div class="cap-chart-col">
+    <div class="cap-chart-col" style="flex:0 0 auto;min-width:140px">
       <div class="cap-chart-col-title">Storage Tank</div>
       <div class="cap-chart-col-total">${storageTotalCap.toLocaleString()} L</div>
       <div class="cap-bars-row">${storageBars.map(barHtml).join('')}</div>
     </div>
-    <div class="cap-chart-col">
+    <div class="cap-chart-col" style="flex:2;min-width:280px">
       <div class="cap-chart-col-title">Day Tank BITEC</div>
       <div class="cap-chart-col-total">${bitecTotalCap.toLocaleString()} L</div>
-      ${bitecOrder.map(b => subGroupHtml(b, bitecSub[b])).join('')}
+      <div class="cap-subgroup-row">${bitecOrder.map(b => subGroupHtml(b, bitecSub[b])).join('')}</div>
     </div>
-    <div class="cap-chart-col">
+    <div class="cap-chart-col" style="flex:2;min-width:280px">
       <div class="cap-chart-col-title">Storage &amp; Day Tank Off-BITEC</div>
       <div class="cap-chart-col-total">${offTotalCap.toLocaleString()} L</div>
-      ${offOrder.map(b => subGroupHtml(b, offSub[b])).join('')}
+      <div class="cap-subgroup-row">${offOrder.map(b => subGroupHtml(b, offSub[b])).join('')}</div>
     </div>
   </div>`;
 }
@@ -1112,7 +1116,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     return { r, isStore, ...info };
   }).filter(x => x.st !== 'ok' && x.st !== 'shared').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
 
-  let storageCardHtml = '<div class="card" style="flex:1;min-width:420px;margin-bottom:0"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
+  let storageCardHtml = '<div class="card" style="margin-bottom:16px"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
   storageCardHtml += storeTanks.length
     ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true, true)).join('')}</div>`
     : '<div class="loading">ไม่พบ Store Tank</div>';
@@ -1120,7 +1124,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
 
   const capacityChartHtml = renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, fullKey, actualKey);
 
-  let html = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">${storageCardHtml}${capacityChartHtml}</div>`;
+  let html = storageCardHtml + capacityChartHtml;
 
   if (alerts.length) {
     const hasCritical = alerts.some(a => a.st === 'critical');
