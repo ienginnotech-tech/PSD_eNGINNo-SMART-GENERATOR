@@ -108,8 +108,10 @@ tr:hover td{background:var(--surface2)}
 .modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text2);
   font-size:22px;line-height:1;cursor:pointer;padding:4px}
 .modal-close:hover{color:var(--text)}
-.rd-label{color:var(--text2);font-size:11px;white-space:nowrap;padding:4px 12px 4px 0;vertical-align:top}
-.rd-value{font-size:12px;padding:4px 0;word-break:break-word}
+.rd-label{color:var(--text2);font-size:11px;text-align:left;white-space:normal;vertical-align:top;width:42%;padding:6px 12px 6px 0}
+.rd-value{font-size:12px;text-align:left;white-space:normal;word-break:break-word;vertical-align:top;padding:6px 8px 6px 0;width:38%}
+.rd-result{font-size:12px;text-align:left;white-space:normal;word-break:break-word;vertical-align:top;padding:6px 0;width:20%;color:var(--accent);font-weight:600}
+.rd-table{table-layout:fixed}
 .gen-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:10px;
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .gen-name{font-weight:700;font-size:13px}
@@ -1499,7 +1501,40 @@ function rdValue_(v) {
   return escHtml(s);
 }
 
-// ฉบับหนึ่งของผลทดสอบ: แสดงทุก field แบบตาราง key:value (ไม่ hardcode ชื่อคอลัมน์ เพราะ Weekly/Annual มีคอลัมน์ต่างกันได้)
+// จุดที่ 1: Availability (%) เก็บในชีตเป็นเศษส่วน (1 = 100%, 0.95 = 95%) -> คูณ 100 แล้วใส่ % ก่อนแสดง
+// ใช้เฉพาะ key ที่เกี่ยวกับ availability เท่านั้น ค่าฟิลด์อื่นแสดงตามปกติ
+function rdFormatValue_(key, value) {
+  if (/availability|เปอร์เซ็นต์ความพร้อม/i.test(key)) {
+    const num = parseFloat(value);
+    if (!isNaN(num)) {
+      const pct = num <= 1 ? num * 100 : num; // เผื่อบางแถวเก็บเป็น 0-100 อยู่แล้ว ไม่ต้องคูณซ้ำ
+      const rounded = Math.round(pct * 100) / 100; // ปัด 2 ตำแหน่ง ตัดศูนย์ท้ายทิ้งอัตโนมัติ
+      return rdValue_(rounded + '%');
+    }
+  }
+  return rdValue_(value);
+}
+
+// จุดที่ 2: จัดกลุ่ม field คู่ "หัวข้อ" + "Result / ผลลัพท์ที่ได้-N" ให้อยู่แถวเดียวกัน แทนที่จะแยกเป็นคนละแถว
+// (ข้อมูลจริงในชีตเก็บเป็น 2 คอลัมน์ต่อเนื่องกันเสมอ: หัวข้อตรวจ -> ค่าที่บันทึก, แล้วตามด้วย Result ของหัวข้อนั้น)
+function buildRecordRows_(record, skipKeys) {
+  const resultPattern = /^Result\s*\/\s*ผลลัพท์ที่ได้/i;
+  const rows = [];
+  let last = null;
+  Object.keys(record).forEach(k => {
+    if (skipKeys.indexOf(k) !== -1) return;
+    if (resultPattern.test(k) && last) {
+      last.resultValue = record[k]; // ผูกเข้ากับแถวหัวข้อก่อนหน้าแทนการขึ้นแถวใหม่
+    } else {
+      last = { label: k, value: record[k], resultValue: undefined };
+      rows.push(last);
+    }
+  });
+  return rows;
+}
+
+// ฉบับหนึ่งของผลทดสอบ: แสดงทุก field แบบตาราง 3 คอลัมน์ (หัวข้อ / ค่าที่บันทึก / ผล) ชิดซ้ายทั้งหมด
+// ไม่ hardcode ชื่อคอลัมน์ เพราะ Weekly/Annual มีคอลัมน์ต่างกันได้
 // + ป้าย "หัวหน้างานรับทราบแล้ว/ยังไม่รับทราบ" เช็คจาก field ที่ชื่อมีคำว่า "หัวหน้า...ลงชื่อ/ลงนาม"
 function renderRecordCard_(record, index) {
   const keys = Object.keys(record);
@@ -1507,10 +1542,12 @@ function renderRecordCard_(record, index) {
   const acked = ackKey && String(record[ackKey] || '').trim() !== '';
   const dateKey = keys.find(k => /^date$|วันที่/i.test(k));
 
-  const rowsHtml = keys
-    .filter(k => k !== dateKey) // วันที่เอาไปแสดงในหัวการ์ดแล้ว ไม่ต้องซ้ำในตาราง
-    .map(k => `<tr><td class="rd-label">${escHtml(k)}</td><td class="rd-value">${rdValue_(record[k])}</td></tr>`)
-    .join('');
+  const rows = buildRecordRows_(record, dateKey ? [dateKey] : []);
+  const rowsHtml = rows.map(row => `<tr>
+      <td class="rd-label">${escHtml(row.label)}</td>
+      <td class="rd-value">${rdFormatValue_(row.label, row.value)}</td>
+      <td class="rd-result">${row.resultValue !== undefined ? rdValue_(row.resultValue) : ''}</td>
+    </tr>`).join('');
 
   return `<div class="card" style="margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -1521,7 +1558,10 @@ function renderRecordCard_(record, index) {
             : '<span class="status-badge status-warn">⏳ ยังไม่รับทราบ</span>')
         : ''}
     </div>
-    <div class="table-wrap"><table>${rowsHtml}</table></div>
+    <div class="table-wrap"><table class="rd-table">
+      <thead><tr><th>หัวข้อตรวจสอบ</th><th>ค่าที่บันทึก</th><th>ผล</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>
   </div>`;
 }
 
