@@ -108,7 +108,7 @@ tr:hover td{background:var(--surface2)}
 .cap-subgroup-row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
 .cap-subgroup{margin-bottom:0}
 .cap-subgroup-title{font-weight:600;font-size:11.5px;color:#334155;margin-bottom:6px;text-align:center}
-.cap-bars-row{display:flex;gap:8px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.cap-bars-row{display:flex;gap:8px;align-items:flex-end;justify-content:center;flex-wrap:wrap;margin-top:4px}
 .cap-bar-col{display:flex;flex-direction:column;align-items:center;width:60px}
 .cap-bar{width:100%;background:#2563eb;border-radius:4px 4px 0 0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;box-sizing:border-box}
 .cap-bar-actual{color:#ffffff;font-size:10px;text-align:center;line-height:1.3;font-weight:600}
@@ -967,7 +967,7 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
   const MAX_BAR_H = 130; // ลดจาก 170 -> 130 ให้ทั้งผังดูเตี้ยลง กระชับขึ้น ตอนนี้มีความกว้างเต็มหน้าจอมาช่วยแล้ว
 
   function barHtml(b) {
-    const h = Math.max(24, Math.round((b.full / maxFull) * MAX_BAR_H));
+    const h = Math.max(44, Math.round((b.full / maxFull) * MAX_BAR_H)); // 44px ขั้นต่ำ กันข้อความ 2 บรรทัดล้นออกนอกแท่ง
     const inner = b.actual === null
       ? '<span style="opacity:.75">-</span>'
       : `${b.actual.toLocaleString()} L<br><b>${b.pct}%</b>`;
