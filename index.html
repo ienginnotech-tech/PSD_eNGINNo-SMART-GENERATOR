@@ -1344,6 +1344,7 @@ function testReportFilterBar_(dateFrom, dateTo) {
     </div>
     <button class="btn small" onclick="applyTestReportFilter_()">🔍 กรองข้อมูล</button>
     <button class="btn small ghost" onclick="renderTestReport()">↺ ล้างตัวกรอง</button>
+    <button class="btn small" style="margin-left:auto" onclick="openAuditExportModal_('${dateFrom || ''}','${dateTo || ''}')">📑 Audit Export</button>
   </div>`;
 }
 
@@ -1563,6 +1564,49 @@ function renderRecordCard_(record, index) {
       <tbody>${rowsHtml}</tbody>
     </table></div>
   </div>`;
+}
+
+// เปิด modal ให้เลือกฟอร์แมต export (Excel/PDF) ตามตัวกรองวันที่ปัจจุบันของหน้า Test Report
+function openAuditExportModal_(dateFrom, dateTo) {
+  const rangeLabel = (dateFrom || dateTo) ? `${dateFrom || 'ไม่ระบุ'} - ${dateTo || 'ไม่ระบุ'}` : 'ทั้งหมด (ไม่ได้กรองวันที่)';
+  openModal_(`
+    <h3 style="margin:0 0 4px;padding-right:24px">📑 Audit Export</h3>
+    <div style="color:var(--text2);font-size:12px;margin-bottom:16px">
+      ส่งออกรายงานสรุป + รายละเอียดทุกฉบับที่เจอในช่วงที่กรอง<br>ช่วงวันที่: ${escHtml(rangeLabel)}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="doAuditExport_('xlsx','${dateFrom || ''}','${dateTo || ''}', this)">📊 Excel (.xlsx)</button>
+      <button class="btn" onclick="doAuditExport_('pdf','${dateFrom || ''}','${dateTo || ''}', this)">📄 PDF</button>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:10px">
+      Excel: มีทุก field ครบทุกคอลัมน์ต่อ Sheet (เหมาะสำหรับตรวจสอบละเอียด) · PDF: สรุปอ่านง่าย พร้อมสถานะรับทราบของหัวหน้างานทุกฉบับ
+    </div>
+    <div id="auditExportStatus" style="margin-top:14px;font-size:12px;color:var(--text2)"></div>`);
+}
+
+function doAuditExport_(format, dateFrom, dateTo, btn) {
+  const statusEl = document.getElementById('auditExportStatus');
+  const buttons = btn.parentElement.querySelectorAll('button');
+  buttons.forEach(b => b.disabled = true);
+  if (statusEl) statusEl.textContent = '⏳ กำลังสร้างไฟล์ ' + (format === 'pdf' ? 'PDF' : 'Excel') + ' อาจใช้เวลาสักครู่ (ข้อมูลเยอะจะช้าหน่อย)...';
+
+  callApi('exportAuditReport', { format, dateFrom: dateFrom || '', dateTo: dateTo || '' }).then(res => {
+    buttons.forEach(b => b.disabled = false);
+    if (!res.ok) {
+      if (statusEl) statusEl.textContent = '';
+      alert('Export ล้มเหลว: ' + (res.error || 'ไม่ทราบสาเหตุ'));
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = 'data:' + res.mimeType + ';base64,' + res.base64;
+    link.download = res.fileName;
+    link.click();
+    if (statusEl) statusEl.textContent = '✅ ดาวน์โหลดแล้ว: ' + res.fileName;
+  }).catch(err => {
+    buttons.forEach(b => b.disabled = false);
+    if (statusEl) statusEl.textContent = '';
+    alert('เชื่อมต่อไม่ได้: ' + err.message);
+  });
 }
 
 /* ---------- SOP & FLOW ---------- */
