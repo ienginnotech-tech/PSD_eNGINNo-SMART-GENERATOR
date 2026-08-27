@@ -101,6 +101,19 @@ tr:hover td{background:var(--surface2)}
 .tr-clickable{cursor:pointer;transition:.15s}
 .tr-clickable:hover{border-color:var(--accent);background:rgba(255,140,0,.06)}
 .tr-machine-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.cap-chart-card{background:#ffffff;color:#0f172a;border-radius:8px;padding:18px;display:flex;gap:22px;flex-wrap:wrap;flex:1;min-width:420px;border:1px solid var(--border2)}
+.cap-chart-col{flex:1;min-width:150px}
+.cap-chart-col-title{font-weight:700;font-size:13px;text-align:center;margin-bottom:2px;color:#0f172a}
+.cap-chart-col-total{font-weight:800;font-size:19px;text-align:center;margin-bottom:12px;color:#0f172a}
+.cap-subgroup{margin-bottom:14px}
+.cap-subgroup-title{font-weight:600;font-size:11.5px;color:#334155;margin-bottom:6px;text-align:center}
+.cap-bars-row{display:flex;gap:8px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.cap-bar-col{display:flex;flex-direction:column;align-items:center;width:60px}
+.cap-bar{width:100%;background:#2563eb;border-radius:4px 4px 0 0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;box-sizing:border-box}
+.cap-bar-actual{color:#ffffff;font-size:10px;text-align:center;line-height:1.3;font-weight:600}
+.cap-bar-full{font-size:10px;color:#475569;margin-top:4px;font-weight:600}
+.cap-bar-label{font-size:10.5px;color:#0f172a;font-weight:700;margin-top:2px;text-align:center}
+@media (max-width:900px){.cap-chart-card{flex-direction:column}}
 @media (max-width:520px){.tr-grid{grid-template-columns:1fr}}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:flex;
   align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
@@ -902,6 +915,96 @@ function buildGaugeHtml_(full, actual, isStore) {
     <div class="gauge-ticks">${ticksHtml}</div>`;
 }
 
+// อาคารที่นับรวมอยู่ใน "กลุ่ม BITEC" (คอมพาวด์เดียวกัน) ส่วนที่เหลือทั้งหมดถือเป็น Off-BITEC โดยอัตโนมัติ
+const CAP_CHART_BITEC_BUILDINGS_ = ['BITEC I', 'BITEC II', 'BTB'];
+
+// ผังเปรียบเทียบความจุถัง จัดกลุ่มตามอาคารจริง (Storage Tank / Day Tank BITEC / Storage & Day Tank Off-BITEC)
+// แท่งสีฟ้า = ความจุเต็ม (Full) ตัวเลขในแท่ง = คงเหลือจริง (Actual) + % ที่เหลือ พื้นหลังการ์ดสีขาวตามที่ขอ
+function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, fullKey, actualKey) {
+  function tankBar(r, label) {
+    const full = parseFloat(r[fullKey]) || 0;
+    const actualRaw = parseFloat(r[actualKey]);
+    const actual = isNaN(actualRaw) ? null : actualRaw;
+    const pct = full > 0 && actual !== null ? Math.round((actual / full) * 100) : null;
+    return { label: label || r[nameKey] || '-', full, actual, pct };
+  }
+
+  const storageBars = storeTanks.map((r, i) => tankBar(r, 'Store ' + (i + 1)));
+
+  // คอลัมน์ BITEC: sub-group ตามอาคารจริง (BITEC I / BITEC II / BTB) เรียงตามลำดับที่กำหนด
+  const bitecSub = {};
+  const bitecOrder = [];
+  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) !== -1).forEach(r => {
+    const b = r[buildingKey];
+    if (!bitecSub[b]) { bitecSub[b] = []; bitecOrder.push(b); }
+    bitecSub[b].push(tankBar(r));
+  });
+  bitecOrder.sort((a, b) => CAP_CHART_BITEC_BUILDINGS_.indexOf(a) - CAP_CHART_BITEC_BUILDINGS_.indexOf(b));
+
+  // คอลัมน์ Off-BITEC: อาคารที่เหลือทั้งหมด (ไม่ hardcode ชื่อ กันตกหล่นถ้ามีอาคารใหม่ในอนาคต)
+  // รวม SL-P1 + SL-Campus A เป็น "SLS" กลุ่มเดียว เหมือนที่ Day Tank ด้านล่างใช้อยู่แล้ว
+  const offSub = {};
+  const offOrder = [];
+  genTanks.filter(r => CAP_CHART_BITEC_BUILDINGS_.indexOf(r[buildingKey]) === -1).forEach(r => {
+    const grouped = displayGroupLabel_(r[buildingKey]);
+    const label = grouped === 'Summer LaSalle' ? 'SLS' : grouped;
+    if (!offSub[label]) { offSub[label] = []; offOrder.push(label); }
+    offSub[label].push(tankBar(r));
+  });
+  offOrder.sort((a, b) => buildingSortIndex_(a) - buildingSortIndex_(b));
+
+  if (storageBars.length === 0 && bitecOrder.length === 0 && offOrder.length === 0) return '';
+
+  // หา full capacity สูงสุดทั้งผัง เพื่อ scale ความสูงแท่งให้เทียบกันได้จริงข้ามทุกกลุ่ม
+  const allBars = storageBars
+    .concat(bitecOrder.reduce((acc, b) => acc.concat(bitecSub[b]), []))
+    .concat(offOrder.reduce((acc, b) => acc.concat(offSub[b]), []));
+  const maxFull = Math.max(1, ...allBars.map(b => b.full));
+  const MAX_BAR_H = 170;
+
+  function barHtml(b) {
+    const h = Math.max(24, Math.round((b.full / maxFull) * MAX_BAR_H));
+    const inner = b.actual === null
+      ? '<span style="opacity:.75">-</span>'
+      : `${b.actual.toLocaleString()} L<br><b>${b.pct}%</b>`;
+    return `<div class="cap-bar-col">
+      <div class="cap-bar" style="height:${h}px"><div class="cap-bar-actual">${inner}</div></div>
+      <div class="cap-bar-full">${b.full.toLocaleString()} L</div>
+      <div class="cap-bar-label">${escHtml(b.label)}</div>
+    </div>`;
+  }
+
+  function subGroupHtml(title, bars) {
+    return `<div class="cap-subgroup">
+      <div class="cap-subgroup-title">${escHtml(title)}</div>
+      <div class="cap-bars-row">${bars.map(barHtml).join('')}</div>
+    </div>`;
+  }
+
+  const sumFull = arr => arr.reduce((s, b) => s + b.full, 0);
+  const storageTotalCap = sumFull(storageBars);
+  const bitecTotalCap = bitecOrder.reduce((s, b) => s + sumFull(bitecSub[b]), 0);
+  const offTotalCap = offOrder.reduce((s, b) => s + sumFull(offSub[b]), 0);
+
+  return `<div class="cap-chart-card">
+    <div class="cap-chart-col">
+      <div class="cap-chart-col-title">Storage Tank</div>
+      <div class="cap-chart-col-total">${storageTotalCap.toLocaleString()} L</div>
+      <div class="cap-bars-row">${storageBars.map(barHtml).join('')}</div>
+    </div>
+    <div class="cap-chart-col">
+      <div class="cap-chart-col-title">Day Tank BITEC</div>
+      <div class="cap-chart-col-total">${bitecTotalCap.toLocaleString()} L</div>
+      ${bitecOrder.map(b => subGroupHtml(b, bitecSub[b])).join('')}
+    </div>
+    <div class="cap-chart-col">
+      <div class="cap-chart-col-title">Storage &amp; Day Tank Off-BITEC</div>
+      <div class="cap-chart-col-total">${offTotalCap.toLocaleString()} L</div>
+      ${offOrder.map(b => subGroupHtml(b, offSub[b])).join('')}
+    </div>
+  </div>`;
+}
+
 function renderFuelTankDashboard_(tankRes, genRes) {
   if (!tankRes.ok || !(tankRes.rows || []).length) {
     return `<div class="card"><div class="card-title">สถานะถังเชื้อเพลิง</div><div class="loading">ไม่มีข้อมูล</div></div>`;
@@ -1009,11 +1112,15 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     return { r, isStore, ...info };
   }).filter(x => x.st !== 'ok' && x.st !== 'shared').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
 
-  let html = '<div class="card"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
-  html += storeTanks.length
+  let storageCardHtml = '<div class="card" style="flex:1;min-width:420px;margin-bottom:0"><div class="card-title">🛢️ สถานะถังน้ำมันสำรองส่วนกลาง (STORAGE TANK)</div>';
+  storageCardHtml += storeTanks.length
     ? `<div class="grid-cards">${storeTanks.map(r => tankCardHtml(r, true, true)).join('')}</div>`
     : '<div class="loading">ไม่พบ Store Tank</div>';
-  html += '</div>';
+  storageCardHtml += '</div>';
+
+  const capacityChartHtml = renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, fullKey, actualKey);
+
+  let html = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">${storageCardHtml}${capacityChartHtml}</div>`;
 
   if (alerts.length) {
     const hasCritical = alerts.some(a => a.st === 'critical');
