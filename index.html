@@ -92,6 +92,13 @@ tr:hover td{background:var(--surface2)}
 .stat-num{font-size:26px;font-weight:800;color:var(--accent)}
 .stat-label{font-size:11px;color:var(--text2);margin-top:4px}
 
+.tr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.tr-block{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;font-size:12px}
+.tr-block-title{font-weight:600;margin-bottom:4px;color:var(--text2)}
+.tr-count{font-weight:400;color:var(--text2)}
+.tr-block-row{margin-top:2px}
+.tr-empty{color:var(--text2);font-style:italic}
+@media (max-width:520px){.tr-grid{grid-template-columns:1fr}}
 .gen-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:10px;
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .gen-name{font-weight:700;font-size:13px}
@@ -586,6 +593,7 @@ function enterApp() {
 const NAV_GROUPS = [
   { section: 'OVERVIEW', color: '#a78bfa', items: [
     { key: 'dashboard', icon: '📊', label: 'DASHBOARD MONITOR' },
+    { key: 'testReport', icon: '🧾', label: 'TEST REPORT' },
     { key: 'sopFlow', icon: '🗺️', label: 'SOP & FLOW' }
   ]},
   { section: 'PROCESS TEST', color: '#ff8c00', items: [
@@ -645,6 +653,7 @@ function navigate(key) {
   document.getElementById('sidebar').classList.remove('open');
   const routes = {
     dashboard: renderDashboard,
+    testReport: () => renderTestReport(),
     sopFlow: renderSopFlow,
     generators: renderGenerators,
     dailyCheck: renderDailyCheck,
@@ -1283,6 +1292,119 @@ function renderPmFromScan(genId) {
       `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
         <button class="btn small ghost" onclick="renderPmFromScan('${escAttr(genId)}')" style="margin-left:8px">ลองใหม่</button></div>`;
   });
+}
+
+/* ---------- TEST REPORT ---------- */
+// สรุปรวม Daily Check / Weekly Test / Annual Test / Fuel Log แยกตามอาคาร (Virtual Report - อ่านสดจาก backend ทุกครั้ง)
+function renderTestReport(dateFrom, dateTo, buildingCode) {
+  const el = document.getElementById('pageContent');
+  el.innerHTML = pageHeader('🧾 Test Report', 'สรุปผลตรวจสอบ Daily/Weekly/Annual และการใช้เชื้อเพลิง แยกตามอาคาร') +
+    testReportFilterBar_(dateFrom, dateTo) +
+    '<div id="testReportBody" class="loading">กำลังโหลด...</div>';
+
+  callApi('getTestReport', { dateFrom: dateFrom || '', dateTo: dateTo || '', buildingCode: buildingCode || '' }).then(res => {
+    const body = document.getElementById('testReportBody');
+    if (!res.ok) {
+      body.innerHTML = `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(res.error || 'ไม่ทราบสาเหตุ')}
+        <button class="btn small ghost" onclick="renderTestReport()" style="margin-left:8px">ลองใหม่</button></div>`;
+      return;
+    }
+    body.innerHTML = renderTestReportBody_(res);
+  }).catch(err => {
+    document.getElementById('testReportBody').innerHTML =
+      `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+        <button class="btn small ghost" onclick="renderTestReport()" style="margin-left:8px">ลองใหม่</button></div>`;
+  });
+}
+
+function testReportFilterBar_(dateFrom, dateTo) {
+  const fromIso = dateFrom ? toIsoDate_(dateFrom) : '';
+  const toIso = dateTo ? toIsoDate_(dateTo) : '';
+  return `<div class="card" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="margin-bottom:0;width:160px">
+      <label>ตั้งแต่วันที่</label>
+      <input type="date" id="trFrom" value="${fromIso}">
+    </div>
+    <div class="field" style="margin-bottom:0;width:160px">
+      <label>ถึงวันที่</label>
+      <input type="date" id="trTo" value="${toIso}">
+    </div>
+    <button class="btn small" onclick="applyTestReportFilter_()">🔍 กรองข้อมูล</button>
+    <button class="btn small ghost" onclick="renderTestReport()">↺ ล้างตัวกรอง</button>
+  </div>`;
+}
+
+function applyTestReportFilter_() {
+  const fromIso = document.getElementById('trFrom').value; // yyyy-mm-dd จาก <input type=date>
+  const toIso = document.getElementById('trTo').value;
+  renderTestReport(toThaiDate_(fromIso), toThaiDate_(toIso));
+}
+
+// yyyy-mm-dd (จาก <input type=date>) -> dd/MM/yyyy (รูปแบบเดียวกับที่ backend เก็บ/กรอง)
+function toThaiDate_(isoStr) {
+  if (!isoStr) return '';
+  const parts = isoStr.split('-');
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+}
+// dd/MM/yyyy -> yyyy-mm-dd (ใช้ตอนเซ็ตค่า value กลับเข้า <input type=date> เวลากดกรองซ้ำ)
+function toIsoDate_(thaiStr) {
+  if (!thaiStr) return '';
+  const parts = thaiStr.split('/');
+  if (parts.length !== 3) return '';
+  return parts[2] + '-' + parts[1] + '-' + parts[0];
+}
+
+function testReportStatusBadge_(status) {
+  const s = String(status || '').trim();
+  if (!s) return `<span class="status-badge status-shared">ยังไม่มีข้อมูล</span>`;
+  if (/ผิดปกติ|fail|abnormal/i.test(s)) return `<span class="status-badge status-danger">🔴 ${escHtml(s)}</span>`;
+  if (/ปกติ|pass|normal/i.test(s)) return `<span class="status-badge status-ok">🟢 ${escHtml(s)}</span>`;
+  return `<span class="status-badge status-warn">${escHtml(s)}</span>`;
+}
+
+function testReportSection_(label, summary) {
+  if (!summary || !summary.count) {
+    return `<div class="tr-block"><div class="tr-block-title">${label}</div><div class="tr-empty">ยังไม่มีข้อมูล</div></div>`;
+  }
+  return `<div class="tr-block">
+    <div class="tr-block-title">${label} <span class="tr-count">(${summary.count} ครั้ง)</span></div>
+    <div class="tr-block-row">ล่าสุด: ${escHtml(summary.lastDate || '-')}</div>
+    <div class="tr-block-row">${testReportStatusBadge_(summary.lastStatus)}</div>
+    ${summary.lastBy ? `<div class="tr-block-row">👤 ${escHtml(summary.lastBy)}</div>` : ''}
+  </div>`;
+}
+
+function renderTestReportBody_(res) {
+  if (!res.buildings || !res.buildings.length) {
+    return '<div class="card loading">ไม่พบข้อมูลเครื่องกำเนิดไฟฟ้าในสิทธิ์ของท่าน หรือไม่มีข้อมูลในช่วงวันที่ที่เลือก</div>';
+  }
+  let html = '';
+  if (!res.dailyCheckAvailable) {
+    html += `<div class="card" style="border-color:#ff8c00"><b>⚠️ หมายเหตุ:</b> ยังไม่มีการบันทึก Daily Check เข้าระบบเลย ส่วน Daily Check ในรายงานนี้จะแสดง "ยังไม่มีข้อมูล" จนกว่าจะเริ่มมีการกรอกข้อมูลจริง</div>`;
+  }
+  res.buildings.forEach(group => {
+    html += `<div class="nav-section-label" style="margin-top:18px">
+        <span class="nav-section-dot" style="background:#a78bfa"></span>${escHtml(group.building)} (${group.machines.length} เครื่อง)
+      </div>
+      <div class="grid-cards">`;
+    group.machines.forEach(m => {
+      html += `<div class="card">
+        <div class="gen-name">${escHtml(m.name)}</div>
+        <div class="gen-meta">Code: ${escHtml(m.code)}${m.frequency ? ' · ความถี่: ' + escHtml(m.frequency) : ''}</div>
+        <div class="tr-grid">
+          ${testReportSection_('✅ Daily Check', m.daily)}
+          ${testReportSection_('📋 Weekly Test', m.weekly)}
+          ${testReportSection_('📅 Annual Test', m.annual)}
+        </div>
+        <div class="tr-block" style="margin-top:8px">
+          <div class="tr-block-title">⛽ เชื้อเพลิง (ตามช่วงที่กรอง)</div>
+          <div class="tr-block-row">ใช้ไป: ${m.fuel.usedTotal.toLocaleString()} L · เติม: ${m.fuel.refillTotal.toLocaleString()} L · บันทึก ${m.fuel.logCount} รายการ</div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  return html;
 }
 
 /* ---------- SOP & FLOW ---------- */
