@@ -36,9 +36,9 @@ button,input,select,textarea{font-family:var(--font)}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
 .label-th{display:block;text-transform:none;color:#c9a876;font-size:11px;margin-top:2px;letter-spacing:normal}
-.field input,.field select{width:100%;padding:10px 12px;background:var(--surface2);
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);
   border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px}
-.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
 .pw-wrap{position:relative}
 .pw-wrap input{padding-right:40px}
 .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
@@ -615,6 +615,7 @@ const NAV_GROUPS = [
     { key: 'pmAnnual', icon: '📅', label: 'ANNUAL & EMERGENCY LOAD TEST' }
   ]},
   { section: 'FUEL RECORD', color: '#22c55e', items: [
+    { key: 'fuelReport', icon: '📑', label: 'CURRENT FUEL REPORT' },
     { key: 'fuel', icon: '⛽', label: 'STORAGE FUEL CONTROL' },
     { key: 'fuelTank', icon: '🛢️', label: 'DIESEL FUEL DAY TANK' }
   ]},
@@ -673,6 +674,7 @@ function navigate(key) {
     pmWeekly: () => renderPmForm('weekly'),
     pmAnnual: () => renderPmForm('annual'),
     fuel: renderFuel,
+    fuelReport: renderCurrentFuelReport,
     fuelTank: renderFuelTank,
     repair: renderRepair,
     qrscan: renderQrScan,
@@ -2198,6 +2200,137 @@ function submitPm(period) {
     if (res.ok) setTimeout(() => renderPmForm(period), 1200);
   });
 }
+
+/* ---------- CURRENT FUEL REPORT ---------- */
+// รายงานยอดปริมาณน้ำมันดีเซล ตามฟอร์แมตที่ Store กลางกำหนด (Storage tank + Generator room)
+// ข้อมูลถัง (Capacity/Balance/Diff/Capacity@80%) ดึงสดจาก Re-Order Point_Fuel เสมอ
+// ส่วน "พยากรณ์เดือนถัดไป/หมายเหตุ/ผู้บันทึก" เป็นดุลยพินิจที่ต้องกรอกเองทุกครั้งก่อน export
+function renderCurrentFuelReport() {
+  const el = document.getElementById('pageContent');
+  el.innerHTML = pageHeader('📑 Current Fuel Report', 'รายงานยอดปริมาณน้ำมันดีเซล ตามฟอร์แมตที่ส่งให้ Store กลาง') +
+    '<div id="fuelReportBody" class="loading">กำลังโหลด...</div>';
+
+  callApi('getCurrentFuelReport', {}).then(res => {
+    const body = document.getElementById('fuelReportBody');
+    if (!res.ok) {
+      body.innerHTML = `<div class="card err-msg">โหลดข้อมูลไม่สำเร็จ: ${escHtml(res.error || 'ไม่ทราบสาเหตุ')}
+        <button class="btn small ghost" onclick="renderCurrentFuelReport()" style="margin-left:8px">ลองใหม่</button></div>`;
+      return;
+    }
+    body.innerHTML = renderFuelReportPreview_(res) + renderFuelReportExportForm_();
+  }).catch(err => {
+    document.getElementById('fuelReportBody').innerHTML =
+      `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
+        <button class="btn small ghost" onclick="renderCurrentFuelReport()" style="margin-left:8px">ลองใหม่</button></div>`;
+  });
+}
+
+function fmtInt_(n) {
+  const v = parseFloat(n);
+  return isNaN(v) ? '-' : Math.round(v).toLocaleString();
+}
+
+// ตาราง preview บนหน้าเว็บ (โครงเดียวกับเอกสาร แต่ไม่ต้อง pixel-perfect เพราะไฟล์จริงดูที่ export)
+function renderFuelReportPreview_(res) {
+  const storageRows = (res.storageTanks || []).map(t => `<tr>
+      <td>${escHtml(t.tankNo)}</td><td style="text-align:right">${fmtInt_(t.capacity)}</td><td style="text-align:right">${fmtInt_(t.balance)}</td>
+    </tr>`).join('');
+
+  let genRows = '';
+  (res.generatorGroups || []).forEach(g => {
+    g.machines.forEach((m, i) => {
+      const diffText = m.diff80 === null ? '-' : fmtInt_(m.diff80);
+      genRows += `<tr>
+        ${i === 0 ? `<td rowspan="${g.machines.length}">${escHtml(g.location)}</td>` : ''}
+        <td>${escHtml(m.genNo)}</td>
+        <td style="text-align:right">${fmtInt_(m.capacity)}</td>
+        <td style="text-align:right">${fmtInt_(m.balance)} (${Math.round((m.pct || 0) * 100)}%)</td>
+        <td style="text-align:right">${diffText}</td>
+      </tr>`;
+    });
+  });
+
+  return `<div class="card">
+    <div class="card-title">🛢️ Storage Tank</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tank no.</th><th>Capacity (L)</th><th>Balance (L)</th></tr></thead>
+      <tbody>${storageRows || '<tr><td colspan="3" class="tr-empty">ไม่พบ Store Tank</td></tr>'}
+        <tr style="font-weight:700"><td>Total</td><td style="text-align:right">${fmtInt_(res.storageTotal?.capacity)}</td><td style="text-align:right">${fmtInt_(res.storageTotal?.balance)}</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tr-block-row" style="margin-top:8px;color:var(--rose)">Diff (Balance - Capacity รวม): ${fmtInt_(res.storageTotal?.diff)} L</div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚙️ Generator Room</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Location</th><th>Gen no.</th><th>Capacity (L)</th><th>Balance (L)</th><th>Capacity@80% Diff</th></tr></thead>
+      <tbody>${genRows || '<tr><td colspan="5" class="tr-empty">ไม่พบเครื่องในสิทธิ์ของท่าน</td></tr>'}
+        <tr style="font-weight:700"><td colspan="2">Total</td><td style="text-align:right">${fmtInt_(res.generatorTotal?.capacity)}</td><td></td><td style="text-align:right">${fmtInt_(res.generatorTotal?.diff80)}</td></tr>
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+// ฟอร์มกรอกส่วนที่เป็นดุลยพินิจ (พยากรณ์/หมายเหตุ/วันที่/ผู้บันทึก) + ปุ่ม Export
+function renderFuelReportExportForm_() {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const defaultName = (SESSION && SESSION.displayName) || '';
+  return `<div class="card">
+    <div class="card-title">📤 Export Excel ตามฟอร์แมต Store กลาง</div>
+    <div style="color:var(--text2);font-size:12px;margin-bottom:14px">
+      ข้อมูลถัง/เครื่องด้านบนดึงสดจากระบบเสมอ ส่วนด้านล่างนี้เป็นข้อมูลที่ต้องกรอกเองทุกครั้งก่อน export (ระบบคำนวณให้อัตโนมัติไม่ได้)
+    </div>
+    <div class="field">
+      <label>พยากรณ์การเติมเดือนถัดไป (Liter) — ใส่ค่าติดลบถ้าคาดว่าจะขาด เช่น -7000</label>
+      <input type="number" id="fr_forecast" placeholder="เช่น -7000">
+    </div>
+    <div class="field">
+      <label>หมายเหตุ (บันทึกการเติม/ถ่ายน้ำมันในช่วงนี้)</label>
+      <textarea id="fr_remarks" rows="3" placeholder="เช่น Gen no 3,7 มีการถ่ายน้ำมันดีเซล 2,000 ลิตร ณ วันที่ ..."></textarea>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div class="field" style="width:180px"><label>วันที่ Update</label><input type="date" id="fr_updateDate" value="${todayIso}"></div>
+      <div class="field" style="width:220px"><label>Record by</label><input type="text" id="fr_recordBy" value="${escAttr(defaultName)}"></div>
+    </div>
+    <button class="btn" onclick="doExportFuelReport_(this)">📤 Export Excel</button>
+    <div id="fuelReportExportStatus" style="margin-top:10px;font-size:12px;color:var(--text2)"></div>
+  </div>`;
+}
+
+function doExportFuelReport_(btn) {
+  const statusEl = document.getElementById('fuelReportExportStatus');
+  const forecastNextMonth = document.getElementById('fr_forecast').value;
+  const remarks = document.getElementById('fr_remarks').value;
+  const updateIso = document.getElementById('fr_updateDate').value;
+  const recordBy = document.getElementById('fr_recordBy').value;
+
+  btn.disabled = true;
+  if (statusEl) statusEl.textContent = '⏳ กำลังสร้างไฟล์ Excel...';
+
+  callApi('exportCurrentFuelReport', {
+    forecastNextMonth: forecastNextMonth,
+    remarks: remarks,
+    updateDate: toThaiDate_(updateIso),
+    recordBy: recordBy
+  }).then(res => {
+    btn.disabled = false;
+    if (!res.ok) {
+      if (statusEl) statusEl.textContent = '';
+      alert('Export ล้มเหลว: ' + (res.error || 'ไม่ทราบสาเหตุ'));
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = 'data:' + res.mimeType + ';base64,' + res.base64;
+    link.download = res.fileName;
+    link.click();
+    if (statusEl) statusEl.textContent = '✅ ดาวน์โหลดแล้ว: ' + res.fileName;
+  }).catch(err => {
+    btn.disabled = false;
+    if (statusEl) statusEl.textContent = '';
+    alert('เชื่อมต่อไม่ได้: ' + err.message);
+  });
+}
+
 
 /* ---------- FUEL LOG ---------- */
 let FUEL_GEN_MAP = {};
