@@ -98,7 +98,18 @@ tr:hover td{background:var(--surface2)}
 .tr-count{font-weight:400;color:var(--text2)}
 .tr-block-row{margin-top:2px}
 .tr-empty{color:var(--text2);font-style:italic}
+.tr-clickable{cursor:pointer;transition:.15s}
+.tr-clickable:hover{border-color:var(--accent);background:rgba(255,140,0,.06)}
 @media (max-width:520px){.tr-grid{grid-template-columns:1fr}}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:flex;
+  align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  max-width:760px;width:100%;padding:22px;position:relative}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text2);
+  font-size:22px;line-height:1;cursor:pointer;padding:4px}
+.modal-close:hover{color:var(--text)}
+.rd-label{color:var(--text2);font-size:11px;white-space:nowrap;padding:4px 12px 4px 0;vertical-align:top}
+.rd-value{font-size:12px;padding:4px 0;word-break:break-word}
 .gen-card{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px;margin-bottom:10px;
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .gen-name{font-weight:700;font-size:13px}
@@ -1309,7 +1320,7 @@ function renderTestReport(dateFrom, dateTo, buildingCode) {
         <button class="btn small ghost" onclick="renderTestReport()" style="margin-left:8px">ลองใหม่</button></div>`;
       return;
     }
-    body.innerHTML = renderTestReportBody_(res);
+    body.innerHTML = renderTestReportBody_(res, dateFrom || '', dateTo || '');
   }).catch(err => {
     document.getElementById('testReportBody').innerHTML =
       `<div class="card err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}
@@ -1362,25 +1373,65 @@ function testReportStatusBadge_(status) {
   return `<span class="status-badge status-warn">${escHtml(s)}</span>`;
 }
 
-function testReportSection_(label, summary) {
+// ข้อ 2: กล่องแต่ละ Test type คลิกได้ (ถ้ามีข้อมูล) เพื่อเปิด modal ดูรายละเอียดฉบับจริง
+function testReportSection_(label, summary, code, name, type, dateFrom, dateTo) {
   if (!summary || !summary.count) {
     return `<div class="tr-block"><div class="tr-block-title">${label}</div><div class="tr-empty">ยังไม่มีข้อมูล</div></div>`;
   }
-  return `<div class="tr-block">
+  const clickArgs = `'${escAttr(code)}','${type}','${escAttr(name)}','${dateFrom}','${dateTo}'`;
+  return `<div class="tr-block tr-clickable" onclick="openTestDetailModal_(${clickArgs})">
     <div class="tr-block-title">${label} <span class="tr-count">(${summary.count} ครั้ง)</span></div>
     <div class="tr-block-row">ล่าสุด: ${escHtml(summary.lastDate || '-')}</div>
     <div class="tr-block-row">${testReportStatusBadge_(summary.lastStatus)}</div>
     ${summary.lastBy ? `<div class="tr-block-row">👤 ${escHtml(summary.lastBy)}</div>` : ''}
+    <div class="tr-block-row" style="color:var(--accent);font-size:11px;margin-top:4px">👆 ดูรายละเอียด</div>
   </div>`;
 }
 
-function renderTestReportBody_(res) {
+// ข้อ 3: กล่องเชื้อเพลิงแบบเดียวกับการ์ดถังใน Dashboard (ใช้ renderTankVisual_/buildGaugeHtml_/statusOfPct ชุดเดียวกัน)
+function renderMachineFuelBox_(m) {
+  if (!m.tank) {
+    return `<div class="tr-block" style="margin-top:8px">
+      <div class="tr-block-title">⛽ เชื้อเพลิง</div>
+      <div class="tr-empty">ไม่พบข้อมูลถังของเครื่องนี้ใน Re-Order Point_Fuel</div>
+    </div>`;
+  }
+  const full = parseFloat(m.tank.full) || 0;
+  const actual = parseFloat(m.tank.actual);
+  const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
+  const st = statusOfPct(pct, false);
+  const statusLabelD = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด' };
+  const statusClassD = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger' };
+  const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+  const inspector = tankInspectorName_(m.building, false);
+  const note = String(m.tank.note || '').trim();
+
+  return `<div class="tank-card" style="margin-top:8px">
+    <div class="tank-name">⛽ ถังประจำเครื่อง <span class="status-badge ${statusClassD[st]}">${statusLabelD[st]}</span></div>
+    <div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, false)}</div></div>
+    <div class="tank-nums" style="margin-top:6px">
+      <span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span>
+      <span>เต็ม: ${full.toLocaleString()} L</span>
+    </div>
+    ${m.tank.rop !== '' && m.tank.rop != null ? `<div class="tank-nums"><span>ROP: ${escHtml(m.tank.rop)}</span><span></span></div>` : ''}
+    ${note ? `<div class="shared-note">📌 ${escHtml(note)}</div>` : ''}
+    ${inspector ? `<div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(inspector)}</div>` : ''}
+    <div class="tr-block-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border2);font-size:11px;color:var(--text2)">
+      ตามช่วงที่กรอง: ใช้ไป ${m.fuel.usedTotal.toLocaleString()} L · เติม ${m.fuel.refillTotal.toLocaleString()} L · บันทึก ${m.fuel.logCount} รายการ
+    </div>
+  </div>`;
+}
+
+function renderTestReportBody_(res, dateFrom, dateTo) {
   if (!res.buildings || !res.buildings.length) {
-    return '<div class="card loading">ไม่พบข้อมูลเครื่องกำเนิดไฟฟ้าในสิทธิ์ของท่าน หรือไม่มีข้อมูลในช่วงวันที่ที่เลือก</div>';
+    return '<div class="card loading">ไม่พบข้อมูลเครื่องกำเนิดไฟฟ้าในสิทธิ์ของท่าน หรือไม่มีเครื่องใดมีผลทดสอบในช่วงวันที่ที่เลือก</div>';
   }
   let html = '';
   if (!res.dailyCheckAvailable) {
     html += `<div class="card" style="border-color:#ff8c00"><b>⚠️ หมายเหตุ:</b> ยังไม่มีการบันทึก Daily Check เข้าระบบเลย ส่วน Daily Check ในรายงานนี้จะแสดง "ยังไม่มีข้อมูล" จนกว่าจะเริ่มมีการกรอกข้อมูลจริง</div>`;
+  }
+  if (res.periodSelected) {
+    html += `<div class="card" style="border-color:#2563eb"><b>🔍 กำลังกรองตามช่วงวันที่:</b> แสดงเฉพาะอาคาร/เครื่องที่มีผลทดสอบ (Daily/Weekly/Annual) อย่างน้อย 1 รายการในช่วงที่เลือก</div>`;
   }
   res.buildings.forEach(group => {
     html += `<div class="nav-section-label" style="margin-top:18px">
@@ -1392,19 +1443,86 @@ function renderTestReportBody_(res) {
         <div class="gen-name">${escHtml(m.name)}</div>
         <div class="gen-meta">Code: ${escHtml(m.code)}${m.frequency ? ' · ความถี่: ' + escHtml(m.frequency) : ''}</div>
         <div class="tr-grid">
-          ${testReportSection_('✅ Daily Check', m.daily)}
-          ${testReportSection_('📋 Weekly Test', m.weekly)}
-          ${testReportSection_('📅 Annual Test', m.annual)}
+          ${testReportSection_('✅ Daily Check', m.daily, m.code, m.name, 'daily', dateFrom, dateTo)}
+          ${testReportSection_('📋 Weekly Test', m.weekly, m.code, m.name, 'weekly', dateFrom, dateTo)}
+          ${testReportSection_('📅 Annual Test', m.annual, m.code, m.name, 'annual', dateFrom, dateTo)}
         </div>
-        <div class="tr-block" style="margin-top:8px">
-          <div class="tr-block-title">⛽ เชื้อเพลิง (ตามช่วงที่กรอง)</div>
-          <div class="tr-block-row">ใช้ไป: ${m.fuel.usedTotal.toLocaleString()} L · เติม: ${m.fuel.refillTotal.toLocaleString()} L · บันทึก ${m.fuel.logCount} รายการ</div>
-        </div>
+        ${renderMachineFuelBox_(m)}
       </div>`;
     });
     html += `</div>`;
   });
   return html;
+}
+
+/* ---- Modal ทั่วไป (ยังไม่มีในระบบมาก่อน สร้างใหม่ใช้ร่วมกับหน้าอื่นได้ในอนาคต) ---- */
+function openModal_(innerHtml) {
+  closeModal_();
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-overlay';
+  wrap.id = 'appModalOverlay';
+  wrap.onclick = (e) => { if (e.target === wrap) closeModal_(); };
+  wrap.innerHTML = `<div class="modal-panel"><button class="modal-close" onclick="closeModal_()">✕</button>${innerHtml}</div>`;
+  document.body.appendChild(wrap);
+}
+function closeModal_() {
+  const el = document.getElementById('appModalOverlay');
+  if (el) el.remove();
+}
+
+// ข้อ 2: เปิด modal ดึงรายการฉบับจริงของเครื่องนี้ (daily/weekly/annual) มาแสดงทุก field
+// + เช็คว่าหัวหน้างานลงชื่อ/พิจารณาแล้วหรือยังจาก field ที่มีคำว่า "หัวหน้า...ลงชื่อ/ลงนาม"
+function openTestDetailModal_(code, type, name, dateFrom, dateTo) {
+  const typeLabels = { daily: '✅ Daily Check', weekly: '📋 Weekly Test', annual: '📅 Annual Test' };
+  openModal_(`
+    <h3 style="margin:0 0 4px;padding-right:24px">${typeLabels[type] || type} — ${escHtml(name)}</h3>
+    <div style="color:var(--text2);font-size:12px;margin-bottom:14px">Code: ${escHtml(code)}</div>
+    <div id="rdBody" class="loading">กำลังโหลด...</div>`);
+
+  callApi('getTestReportRecords', { code, type, dateFrom: dateFrom || '', dateTo: dateTo || '' }).then(res => {
+    const body = document.getElementById('rdBody');
+    if (!body) return; // ผู้ใช้ปิด modal ไปแล้วก่อนโหลดเสร็จ
+    if (!res.ok) { body.innerHTML = `<div class="err-msg">${escHtml(res.error || 'โหลดข้อมูลไม่สำเร็จ')}</div>`; return; }
+    if (!res.records || !res.records.length) { body.innerHTML = '<div class="tr-empty">ยังไม่มีข้อมูลในช่วงที่เลือก</div>'; return; }
+    body.innerHTML = res.records.map((r, i) => renderRecordCard_(r, i)).join('');
+  }).catch(err => {
+    const body = document.getElementById('rdBody');
+    if (body) body.innerHTML = `<div class="err-msg">เชื่อมต่อไม่ได้: ${escHtml(err.message)}</div>`;
+  });
+}
+
+// แสดงค่าฟิลด์ทั่วไปในตาราง — ถ้าเป็น URL (เช่นลิงก์รูปภาพ/ลายเซ็นต์ที่อัปโหลดขึ้น Drive) แสดงเป็นลิงก์เปิดดูแทนข้อความยาวๆ
+function rdValue_(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '-';
+  if (/^https?:\/\//i.test(s)) return `<a href="${escAttr(s)}" target="_blank" rel="noopener">🔗 เปิดดู</a>`;
+  return escHtml(s);
+}
+
+// ฉบับหนึ่งของผลทดสอบ: แสดงทุก field แบบตาราง key:value (ไม่ hardcode ชื่อคอลัมน์ เพราะ Weekly/Annual มีคอลัมน์ต่างกันได้)
+// + ป้าย "หัวหน้างานรับทราบแล้ว/ยังไม่รับทราบ" เช็คจาก field ที่ชื่อมีคำว่า "หัวหน้า...ลงชื่อ/ลงนาม"
+function renderRecordCard_(record, index) {
+  const keys = Object.keys(record);
+  const ackKey = keys.find(k => /หัวหน้า.*(ลงชื่อ|ลงนาม)/i.test(k));
+  const acked = ackKey && String(record[ackKey] || '').trim() !== '';
+  const dateKey = keys.find(k => /^date$|วันที่/i.test(k));
+
+  const rowsHtml = keys
+    .filter(k => k !== dateKey) // วันที่เอาไปแสดงในหัวการ์ดแล้ว ไม่ต้องซ้ำในตาราง
+    .map(k => `<tr><td class="rd-label">${escHtml(k)}</td><td class="rd-value">${rdValue_(record[k])}</td></tr>`)
+    .join('');
+
+  return `<div class="card" style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+      <b>รายการที่ ${index + 1}${dateKey ? ' · ' + escHtml(record[dateKey]) : ''}</b>
+      ${ackKey
+        ? (acked
+            ? '<span class="status-badge status-ok">✅ หัวหน้างานรับทราบแล้ว</span>'
+            : '<span class="status-badge status-warn">⏳ ยังไม่รับทราบ</span>')
+        : ''}
+    </div>
+    <div class="table-wrap"><table>${rowsHtml}</table></div>
+  </div>`;
 }
 
 /* ---------- SOP & FLOW ---------- */
