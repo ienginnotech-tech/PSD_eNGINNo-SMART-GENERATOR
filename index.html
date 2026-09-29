@@ -1008,7 +1008,7 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
     if (!validBars.length || totalCap <= 0) return '';
     const actualSum = validBars.reduce((s, b) => s + b.actual, 0);
     const pct = Math.round((actualSum / totalCap) * 100);
-    return `<div class="cap-chart-col-remaining">คงเหลือ ${Math.round(actualSum).toLocaleString()} L (${pct}%)</div>`;
+    return `<div class="cap-chart-col-remaining">Remaining ${Math.round(actualSum).toLocaleString()} L (${pct}%)</div>`;
   }
 
   return `<div class="cap-chart-card">
