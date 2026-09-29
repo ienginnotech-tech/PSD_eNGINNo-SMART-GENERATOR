@@ -104,7 +104,8 @@ tr:hover td{background:var(--surface2)}
 .cap-chart-card{background:#ffffff;color:#0f172a;border-radius:8px;padding:18px;display:flex;gap:22px;flex-wrap:wrap;border:1px solid var(--border2);margin-bottom:16px}
 .cap-chart-col{flex:1;min-width:150px}
 .cap-chart-col-title{font-weight:700;font-size:13px;text-align:center;margin-bottom:2px;color:#0f172a}
-.cap-chart-col-total{font-weight:800;font-size:19px;text-align:center;margin-bottom:12px;color:#0f172a}
+.cap-chart-col-total{font-weight:800;font-size:19px;text-align:center;margin-bottom:2px;color:#0f172a}
+.cap-chart-col-remaining{font-weight:600;font-size:12px;text-align:center;margin-bottom:12px;color:#2563eb}
 .cap-subgroup-row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
 .cap-subgroup{margin-bottom:0}
 .cap-subgroup-title{font-weight:600;font-size:11.5px;color:#334155;margin-bottom:6px;text-align:center}
@@ -995,24 +996,38 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
   }
 
   const sumFull = arr => arr.reduce((s, b) => s + b.full, 0);
+  const bitecAllBars = bitecOrder.reduce((acc, b) => acc.concat(bitecSub[b]), []);
+  const offAllBars = offOrder.reduce((acc, b) => acc.concat(offSub[b]), []);
   const storageTotalCap = sumFull(storageBars);
-  const bitecTotalCap = bitecOrder.reduce((s, b) => s + sumFull(bitecSub[b]), 0);
-  const offTotalCap = offOrder.reduce((s, b) => s + sumFull(offSub[b]), 0);
+  const bitecTotalCap = sumFull(bitecAllBars);
+  const offTotalCap = sumFull(offAllBars);
+
+  // ข้อ 1 (A/B/C): ยอดรวม "คงเหลือจริง (L) / % เทียบกับความจุรวม" ต่อท้ายตัวเลขความจุรวมของแต่ละกลุ่ม
+  function groupRemainingLabel_(bars, totalCap) {
+    const validBars = bars.filter(b => b.actual !== null);
+    if (!validBars.length || totalCap <= 0) return '';
+    const actualSum = validBars.reduce((s, b) => s + b.actual, 0);
+    const pct = Math.round((actualSum / totalCap) * 100);
+    return `<div class="cap-chart-col-remaining">คงเหลือ ${Math.round(actualSum).toLocaleString()} L (${pct}%)</div>`;
+  }
 
   return `<div class="cap-chart-card">
     <div class="cap-chart-col" style="flex:0 0 auto;min-width:140px">
       <div class="cap-chart-col-title">Storage Tank</div>
       <div class="cap-chart-col-total">${storageTotalCap.toLocaleString()} L</div>
+      ${groupRemainingLabel_(storageBars, storageTotalCap)}
       <div class="cap-bars-row">${storageBars.map(barHtml).join('')}</div>
     </div>
     <div class="cap-chart-col" style="flex:2;min-width:280px">
-      <div class="cap-chart-col-title">Day Tank BITEC</div>
+      <div class="cap-chart-col-title">Day Tank - In BITEC I-II</div>
       <div class="cap-chart-col-total">${bitecTotalCap.toLocaleString()} L</div>
+      ${groupRemainingLabel_(bitecAllBars, bitecTotalCap)}
       <div class="cap-subgroup-row">${bitecOrder.map(b => subGroupHtml(b, bitecSub[b])).join('')}</div>
     </div>
     <div class="cap-chart-col" style="flex:2;min-width:280px">
-      <div class="cap-chart-col-title">Storage &amp; Day Tank Off-BITEC</div>
+      <div class="cap-chart-col-title">Day Tank - Out BITEC</div>
       <div class="cap-chart-col-total">${offTotalCap.toLocaleString()} L</div>
+      ${groupRemainingLabel_(offAllBars, offTotalCap)}
       <div class="cap-subgroup-row">${offOrder.map(b => subGroupHtml(b, offSub[b])).join('')}</div>
     </div>
   </div>`;
