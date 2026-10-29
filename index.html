@@ -52,9 +52,11 @@ button,input,select,textarea{font-family:var(--font)}
 .field input.ff-prefilled,.field select.ff-prefilled{background:var(--surface);border-color:var(--border2);color:var(--text2)}
 .field input.ff-need-input,.field select.ff-need-input{background:#ffffff;color:#0f172a;border:1.5px solid #2563eb;font-weight:600}
 .field input.ff-need-input:focus,.field select.ff-need-input:focus{border-color:#1d4ed8;box-shadow:0 0 0 2px rgba(37,99,235,.25)}
-.ff-legend-dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:3px;vertical-align:middle}
-.ff-legend-dot.ff-prefilled{background:var(--surface2);border:1px solid var(--border2)}
-.ff-legend-dot.ff-need-input{background:#ffffff;border:1.5px solid #2563eb}
+/* วงกลมทึบสีล้วน (ไม่ใช่ checkbox กดไม่ได้ แค่คำอธิบายสีประกอบ) */
+.ff-legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.ff-legend-dot.ff-prefilled{background:#94a3b8}
+.ff-legend-dot.ff-need-input{background:#2563eb}
+.ff-legend-dot.ff-gray{background:#cbd5e1}
 /* ช่อง Add/After/Used ที่ยังไม่เกี่ยวกับวัตถุประสงค์ที่เลือก -> เทา/ปิดการกรอก */
 .field input.ff-disabled-gray,.field select.ff-disabled-gray{background:var(--surface2);color:var(--text3);
   border-color:var(--border);cursor:not-allowed;opacity:.65}
@@ -2644,9 +2646,10 @@ function renderFuel() {
 
     let formHtml = `<div id="fuelFormWrap">${genPickerHtml}<div class="card"><div class="card-title">บันทึกใหม่ / Update หลังเติม-ใช้น้ำมัน</div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:14px">
-        <span class="ff-legend-dot ff-prefilled"></span> ดึงมาจากข้อมูลล่าสุดอัตโนมัติ &nbsp;&nbsp;
-        <span class="ff-legend-dot ff-need-input"></span> ช่องแถบขาว = ต้องกรอกข้อมูลใหม่ &nbsp;&nbsp;
-        <span class="ff-legend-dot" style="background:var(--surface2);border:1px solid var(--border)"></span> ช่องเทา = เลือก Purpose of Use ก่อนจึงจะกรอกได้
+        <b>คำอธิบายสี (ไม่ต้องกดอะไร แค่ไกด์ว่าช่องไหนทำอะไร):</b><br>
+        <span class="ff-legend-dot ff-prefilled"></span> ช่องเทา = ดึงมาจากข้อมูลล่าสุดอัตโนมัติ &nbsp;&nbsp;
+        <span class="ff-legend-dot ff-need-input"></span> ช่องขอบฟ้า/พื้นขาว = ต้องกรอกข้อมูลใหม่ &nbsp;&nbsp;
+        <span class="ff-legend-dot ff-gray"></span> ช่องเทาอ่อน (กรอกไม่ได้) = ต้องเลือก Purpose of Use ก่อนจึงจะกรอกได้
       </div>
       <div class="fuel-form-cols" id="fuelFormGrid">
         <div class="fuel-form-col" style="flex:0 0 220px">
