@@ -1414,6 +1414,9 @@ function renderGenerators() {
 
 function cssId(s){ return String(s).replace(/[^a-zA-Z0-9]/g,'_'); }
 function escAttr(s){ return String(s).replace(/'/g,"\\'"); }
+// รวมช่องว่างทุกชนิด (รวมถึงขึ้นบรรทัดใหม่ภายในหัวตารางที่พิมพ์ด้วย Alt+Enter ใน Google Sheets) ให้เป็นเว้นวรรคเดียว
+// ก่อนเทียบ regex เพราะ ".*" ปกติไม่ข้ามตัวขึ้นบรรทัดใหม่ ถ้าหัวคอลัมน์มีการตัดบรรทัดเองจะทำให้ regex หาไม่เจอ
+function normH_(h) { return String(h || '').replace(/\s+/g, ' ').trim(); }
 
 function renderQrImage(elementId, genCode, size) {
   // QR ต้องชี้ไปหน้าเว็บที่กำลังเปิดอยู่จริง (frontend) ไม่ใช่ backend API_URL
@@ -2588,7 +2591,7 @@ function renderFuel() {
     }
 
     // ฝั่งซ้าย = เฉพาะข้อมูลเครื่อง (Company/Building/Code) เท่านั้น ส่วน Full/80%/50%/Before ย้ายไปรวมกับ Add/After ฝั่งขวาตามที่ขอ
-    const isLeftRefField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(h);
+    const isLeftRefField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(normH_(h));
     const leftHeaders = headers.filter(isLeftRefField_);
     // เรียงลำดับฝั่งขวาให้คงที่: Date -> Time -> Purpose -> Full -> 80% -> 50% -> Add -> Before -> After -> Used -> (ที่เหลือตามลำดับเดิม)
     const RIGHT_FIELD_ORDER_ = [
@@ -2597,7 +2600,7 @@ function renderFuel() {
       h => /fuel level add/i.test(h), h => /fuel level before/i.test(h), h => /fuel level after/i.test(h),
       h => /fuel used/i.test(h)
     ];
-    const rightFieldRank_ = h => { for (let i = 0; i < RIGHT_FIELD_ORDER_.length; i++) if (RIGHT_FIELD_ORDER_[i](h)) return i; return 999; };
+    const rightFieldRank_ = h => { const nh = normH_(h); for (let i = 0; i < RIGHT_FIELD_ORDER_.length; i++) if (RIGHT_FIELD_ORDER_[i](nh)) return i; return 999; };
     const rightHeaders = headers.filter(h => !isLeftRefField_(h)).sort((a, b) => rightFieldRank_(a) - rightFieldRank_(b));
 
     function renderLeftField_(h) {
@@ -2608,7 +2611,7 @@ function renderFuel() {
     // Add/After/Used เทาและปิดการกรอกไว้ก่อน จนกว่าจะเลือก Purpose (After ใช้ร่วมกันทุกกรณี เพราะต้อง sync ยอดคงเหลือ
     // ล่าสุดกลับ Re-Order Point_Fuel คอลัมน์ J เหมือนกันหมด)
     function renderRightField_(h) {
-      const trimmed = h.trim();
+      const trimmed = normH_(h);
       if (/^date$|วันที่/i.test(trimmed)) {
         const todayIso = new Date().toISOString().slice(0, 10);
         return `<div class="field"><label>${escHtml(h)}</label><input type="date" id="ff_${cssId(h)}" data-header="${escAttr(h)}" data-type="date" data-role="fuel-date" value="${todayIso}" class="ff-need-input"></div>`;
@@ -2700,7 +2703,7 @@ function applyFuelGenPreset(selectEl) {
   const grid = document.getElementById('fuelFormGrid');
   grid.querySelectorAll('[data-header]').forEach(el => {
     if (el.dataset.role) return; // date/time/purpose/add/after/used มี logic แยกด้านล่าง ไม่ล้างค่าทิ้งตรงนี้
-    const h = el.dataset.header;
+    const h = normH_(el.dataset.header);
     el.classList.remove('ff-prefilled', 'ff-need-input');
     if (/company|บริษัท/i.test(h)) { el.value = info.company; el.classList.add('ff-prefilled'); }
     else if (/building|อาคาร/i.test(h)) { el.value = info.building; el.classList.add('ff-prefilled'); }
@@ -2756,7 +2759,7 @@ function autoCalcFuelAfter_() {
   if (!purposeEl || purposeEl.value !== 'Refuel Only') return;
   const addEl = grid.querySelector('[data-role="fuel-add"]');
   const afterEl = grid.querySelector('[data-role="fuel-after"]');
-  const beforeEl = Array.from(grid.querySelectorAll('[data-header]')).find(el => /fuel level before/i.test(el.dataset.header || ''));
+  const beforeEl = Array.from(grid.querySelectorAll('[data-header]')).find(el => /fuel level before/i.test(normH_(el.dataset.header || '')));
   if (!addEl || !afterEl || !beforeEl || addEl.value === '') return;
   const before = parseFloat(beforeEl.value) || 0;
   const add = parseFloat(addEl.value) || 0;
