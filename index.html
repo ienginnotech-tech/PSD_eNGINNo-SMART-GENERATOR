@@ -2869,8 +2869,14 @@ function renderFuelTank() {
   callApi('getFuelTankStatus', {}).then(res => {
     if (!res.ok) { el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const headers = res.headers || [];
-    // คอลัมน์ที่หัวตารางว่างเปล่า (ไม่มีข้อความ) ให้บีบความกว้างแคบสุดแทนที่จะกินพื้นที่เท่าคอลัมน์อื่น
-    const narrowCol_ = h => !String(h || '').trim() ? ' style="width:1%;white-space:nowrap"' : '';
+    const rowsForCheck = res.rows || [];
+    // คอลัมน์ที่ "ไม่มีข้อมูลจริงเลยสักแถว" (ไม่ว่าชื่อหัวคอลัมน์จะเป็นอะไรก็ตาม เช่น หัวว่าง หรือหัวที่ระบบตั้งชื่อให้เองเวลาเซลล์หัวตารางว่าง)
+    // ให้บีบความกว้างแคบสุดแทนที่จะกินพื้นที่เท่าคอลัมน์อื่น (เดิมเช็กแค่ข้อความหัวตารางว่างอย่างเดียว ไม่ครอบคลุมกรณีหัวตารางมีชื่อที่มองไม่เห็น/ระบบตั้งให้เอง)
+    const blankCols_ = new Set(headers.filter(h =>
+      !String(h || '').trim() ||
+      (rowsForCheck.length > 0 && rowsForCheck.every(r => !String(r[h] ?? '').trim()))
+    ));
+    const narrowCol_ = h => blankCols_.has(h) ? ' style="width:1%;white-space:nowrap"' : '';
     let tableHtml = '<div class="card"><div class="table-wrap"><table><thead><tr>';
     headers.forEach(h => tableHtml += `<th${narrowCol_(h)}>${escHtml(h)}</th>`);
     tableHtml += '</tr></thead><tbody>';
