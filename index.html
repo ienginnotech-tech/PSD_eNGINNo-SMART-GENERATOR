@@ -19,6 +19,15 @@
   --font:'Courier New',Courier,monospace;
   --sidebar-w:240px;
 }
+/* ธีมพื้นหลัง Light (ขาว) - สลับผ่าน data-theme บน <html> เท่านั้น ไม่แตะ font/typography ตามที่ขอ */
+:root[data-theme="light"]{
+  --bg:#f3f4f6;--sidebar:#ffffff;--sidebar2:#f3f4f6;
+  --surface:#ffffff;--surface2:#f3f4f6;
+  --border:rgba(15,23,42,.1);--border2:rgba(15,23,42,.16);
+  --text:#0f172a;--text2:#64748b;--text3:#c7cad1;
+  --card:#ffffff;
+  --shadow:0 4px 24px rgba(15,23,42,.1);
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
 button,input,select,textarea{font-family:var(--font)}
@@ -39,6 +48,13 @@ button,input,select,textarea{font-family:var(--font)}
 .field input,.field select,.field textarea{width:100%;padding:10px 12px;background:var(--surface2);
   border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:14px}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+/* ช่องกรอกในฟอร์มบันทึกเชื้อเพลิง: ff-prefilled = ดึงจาก Re-Order Point_Fuel อัตโนมัติ, ff-need-input = แถบขาวต้องกรอกใหม่ทุกครั้ง */
+.field input.ff-prefilled{background:var(--surface);border-color:var(--border2);color:var(--text2)}
+.field input.ff-need-input{background:#ffffff;color:#0f172a;border:1.5px solid #2563eb;font-weight:600}
+.field input.ff-need-input:focus{border-color:#1d4ed8;box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+.ff-legend-dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:3px;vertical-align:middle}
+.ff-legend-dot.ff-prefilled{background:var(--surface2);border:1px solid var(--border2)}
+.ff-legend-dot.ff-need-input{background:#ffffff;border:1.5px solid #2563eb}
 .pw-wrap{position:relative}
 .pw-wrap input{padding-right:40px}
 .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
@@ -777,6 +793,7 @@ function renderDayTankCardsForSession_(tankRes) {
   const actualKey = keys.find(k => /actual/i.test(k));
   const ropKey = keys.find(k => /rop/i.test(k));
   const noteKey = keys.find(k => /หมายเหตุ|^note/i.test(k));
+  const codeKey = keys.find(k => /^code/i.test(k) && !/machine/i.test(k));
 
   const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
   let dayTanks = rows.filter(r => !storeTanks.includes(r));
@@ -810,6 +827,7 @@ function renderDayTankCardsForSession_(tankRes) {
       <div class="tank-nums" style="margin-top:6px"><span>คงเหลือ: ${isNaN(actual) ? '-' : actual.toLocaleString()} L</span><span>เต็ม: ${full.toLocaleString()} L</span></div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
       ${inspector ? `<div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(inspector)}</div>` : ''}
+      ${codeKey && r[codeKey] ? `<button class="btn small" style="margin-top:10px;width:100%" onclick="openFuelUpdateForCard_('${escAttr(r[codeKey])}')">✏️ Update</button>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -824,6 +842,7 @@ function renderStoreTankCardsOnly_(tankRes) {
   const fullKey = keys.find(k => /^full/i.test(k));
   const actualKey = keys.find(k => /actual/i.test(k));
   const ropKey = keys.find(k => /rop/i.test(k));
+  const codeKey = keys.find(k => /^code/i.test(k) && !/machine/i.test(k));
 
   const storeTanks = rows.filter(r => /store\s*tank/i.test(String(r[nameKey] || r[buildingKey] || '')));
   if (!storeTanks.length) return '<div class="loading">ไม่พบ Store Tank</div>';
@@ -848,6 +867,7 @@ function renderStoreTankCardsOnly_(tankRes) {
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
       <div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(STORAGE_TANK_INSPECTOR)}</div>
+      ${codeKey && r[codeKey] ? `<button class="btn small" style="margin-top:10px;width:100%" onclick="openFuelUpdateForCard_('${escAttr(r[codeKey])}')">✏️ Update</button>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -923,6 +943,15 @@ const CAP_CHART_BITEC_BUILDINGS_ = ['BITEC I', 'BITEC II', 'BTB'];
 
 // ผังเปรียบเทียบความจุถัง จัดกลุ่มตามอาคารจริง (Storage Tank / Day Tank BITEC / Storage & Day Tank Off-BITEC)
 // แท่งสีฟ้า = ความจุเต็ม (Full) ตัวเลขในแท่ง = คงเหลือจริง (Actual) + % ที่เหลือ พื้นหลังการ์ดสีขาวตามที่ขอ
+// เกณฑ์สีตาม % คงเหลือ: ฟ้า >=90%, เขียว 50-89%, เหลือง 40-49%, แดง <40%
+function capPctColor_(pct) {
+  if (pct === null || pct === undefined || isNaN(pct)) return '#0f172a';
+  if (pct >= 90) return '#2563eb'; // ฟ้า
+  if (pct >= 50) return '#16a34a'; // เขียว
+  if (pct >= 40) return '#eab308'; // เหลือง
+  return '#dc2626'; // แดง
+}
+
 function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, fullKey, actualKey) {
   function tankBar(r, label) {
     const full = parseFloat(r[fullKey]) || 0;
@@ -980,10 +1009,11 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
     // สีฟ้า (คงเหลือจริง) เติมจากล่างขึ้นบนตาม %, ส่วนที่เหลือด้านบนเป็นสีขาว (ส่วนที่พร่องไป) เหมือนเกจวัดถังจริง
     const fillHtml = b.actual === null ? '' : `<div class="cap-bar-fill" style="height:${pctClamped}%"></div>`;
     const valueText = b.actual === null ? '-' : `${b.actual.toLocaleString()} L (${b.pct}%)`;
+    const valueColor = b.actual === null ? '#0f172a' : capPctColor_(b.pct);
     return `<div class="cap-bar-col">
       <div class="cap-bar-fulltop">${b.full.toLocaleString()} L</div>
       <div class="cap-bar" style="height:${h}px">${fillHtml}</div>
-      <div class="cap-bar-actual-below">${valueText}</div>
+      <div class="cap-bar-actual-below" style="color:${valueColor}">${valueText}</div>
       <div class="cap-bar-label">${escHtml(b.label)}</div>
     </div>`;
   }
@@ -1008,7 +1038,7 @@ function renderCapacityGroupChart_(storeTanks, genTanks, buildingKey, nameKey, f
     if (!validBars.length || totalCap <= 0) return '';
     const actualSum = validBars.reduce((s, b) => s + b.actual, 0);
     const pct = Math.round((actualSum / totalCap) * 100);
-    return `<div class="cap-chart-col-remaining">Remaining ${Math.round(actualSum).toLocaleString()} L (${pct}%)</div>`;
+    return `<div class="cap-chart-col-remaining" style="color:${capPctColor_(pct)}">Remaining ${Math.round(actualSum).toLocaleString()} L (${pct}%)</div>`;
   }
 
   return `<div class="cap-chart-card">
@@ -2549,13 +2579,24 @@ function renderFuel() {
       </div>`;
     }
 
-    let formHtml = `<div id="fuelFormWrap">${genPickerHtml}<div class="card"><div class="card-title">บันทึกใหม่</div><div class="form-grid" id="fuelFormGrid">`;
+    // ช่องที่ auto-fill จาก Re-Order Point_Fuel ตอนเลือกเครื่อง (ดูเงื่อนไขเดียวกันใน applyFuelGenPreset)
+    const isPrefillField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(h) ||
+      /full.*storage|80%.*storage|50%.*storage|fuel level before/i.test(h);
+
+    let formHtml = `<div id="fuelFormWrap">${genPickerHtml}<div class="card"><div class="card-title">บันทึกใหม่ / Update หลังเติม-ใช้น้ำมัน</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
+        <span class="ff-legend-dot ff-prefilled"></span> ดึงมาจากข้อมูลล่าสุดอัตโนมัติ &nbsp;&nbsp;
+        <span class="ff-legend-dot ff-need-input"></span> ช่องแถบขาว = ต้องกรอกข้อมูลใหม่ทุกครั้ง
+      </div>
+      <div class="form-grid" id="fuelFormGrid">`;
     headers.forEach(h => {
+      const needInput = !isPrefillField_(h);
+      const cls = needInput ? ' class="ff-need-input"' : '';
       if (/^date$|วันที่/i.test(h.trim())) {
         const todayIso = new Date().toISOString().slice(0, 10);
-        formHtml += `<div class="field"><label>${escHtml(h)}</label><input type="date" id="ff_${cssId(h)}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"></div>`;
+        formHtml += `<div class="field"><label>${escHtml(h)}</label><input type="date" id="ff_${cssId(h)}" data-header="${escAttr(h)}" data-type="date" value="${todayIso}"${cls}></div>`;
       } else {
-        formHtml += `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}"></div>`;
+        formHtml += `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}"${cls}></div>`;
       }
     });
     formHtml += `</div><button class="btn" style="margin-top:14px" onclick="submitFuel()">✓ บันทึก</button>
@@ -2588,6 +2629,8 @@ function renderFuel() {
 }
 
 // เรียกเมื่อเลือกเครื่องจาก dropdown -> auto-fill Company/Building/Code + Full/80%/50% Storage + Fuel Level Before
+// ช่องที่ auto-fill แล้ว (ดึงจาก Re-Order Point_Fuel) จะใส่ class "ff-prefilled" (สีพื้นปกติ/readonly ตามไตล์เดิม)
+// ส่วนช่องที่ "ต้องกรอกใหม่หลังเติม/ใช้น้ำมัน" จะใส่ class "ff-need-input" (แถบขาวไฮไลต์) ตามที่ขอ
 function applyFuelGenPreset(selectEl) {
   const code = selectEl.value;
   if (!code || !FUEL_GEN_MAP[code]) return;
@@ -2595,14 +2638,36 @@ function applyFuelGenPreset(selectEl) {
   const grid = document.getElementById('fuelFormGrid');
   grid.querySelectorAll('[data-header]').forEach(el => {
     const h = el.dataset.header;
-    if (/company|บริษัท/i.test(h)) el.value = info.company;
-    else if (/building|อาคาร/i.test(h)) el.value = info.building;
-    else if (/^code/i.test(h)) el.value = info.code;
-    else if (/full.*storage/i.test(h) && info.full) el.value = info.full;
-    else if (/80%.*storage/i.test(h) && info.p80) el.value = info.p80;
-    else if (/50%.*storage/i.test(h) && info.full) el.value = (info.full * 0.5).toFixed(1);
-    else if (/fuel level before/i.test(h) && !isNaN(info.actual)) el.value = info.actual;
+    el.classList.remove('ff-prefilled', 'ff-need-input');
+    if (/company|บริษัท/i.test(h)) { el.value = info.company; el.classList.add('ff-prefilled'); }
+    else if (/building|อาคาร/i.test(h)) { el.value = info.building; el.classList.add('ff-prefilled'); }
+    else if (/^code/i.test(h)) { el.value = info.code; el.classList.add('ff-prefilled'); }
+    else if (/full.*storage/i.test(h) && info.full) { el.value = info.full; el.classList.add('ff-prefilled'); }
+    else if (/80%.*storage/i.test(h) && info.p80) { el.value = info.p80; el.classList.add('ff-prefilled'); }
+    else if (/50%.*storage/i.test(h) && info.full) { el.value = (info.full * 0.5).toFixed(1); el.classList.add('ff-prefilled'); }
+    else if (/fuel level before/i.test(h) && !isNaN(info.actual)) { el.value = info.actual; el.classList.add('ff-prefilled'); }
+    else { el.value = ''; el.classList.add('ff-need-input'); } // ช่องอื่นๆ (After/Used/Purpose/Operator/Approved/Remarks ฯลฯ) = ต้องกรอกใหม่ทุกครั้ง
   });
+}
+
+// เรียกจากปุ่ม "✏️ Update" ใต้การ์ดถัง/เครื่องกำเนิดไฟฟ้า (หน้า บันทึกเชื้อเพลิง)
+// -> เลือกเครื่องในช่อง "เลือกเครื่องกำเนิดไฟฟ้า" ให้อัตโนมัติ ดึงข้อมูลจาก Re-Order Point_Fuel มา prefill
+//    แล้วเลื่อนไปที่ฟอร์มพร้อมไฮไลต์ช่องที่ต้องกรอกใหม่ (แถบขาว) ให้กรอกยอดหลังเติม/ใช้น้ำมันทันที
+function openFuelUpdateForCard_(code) {
+  const picker = document.getElementById('fuelGenPicker');
+  if (!picker) { alert('ไม่พบฟอร์มบันทึกเชื้อเพลิงในหน้านี้'); return; }
+  if (!FUEL_GEN_MAP[code]) {
+    alert('ไม่พบข้อมูลเครื่อง ' + code + ' ในรายการเครื่องกำเนิดไฟฟ้า (อาจเป็นถังสำรองกลางที่ไม่ได้ผูกกับเครื่องใดเครื่องหนึ่ง)');
+    return;
+  }
+  picker.value = code;
+  applyFuelGenPreset(picker);
+  const wrap = document.getElementById('fuelFormWrap');
+  if (wrap) {
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wrap.classList.add('flash-highlight');
+    setTimeout(() => wrap.classList.remove('flash-highlight'), 1700);
+  }
 }
 
 function submitFuel() {
@@ -2716,6 +2781,10 @@ const THEME_PRESETS = {
   gray:   { name: 'Gray', accent: '#9ca3af', accent2: '#6b7280', border: 'rgba(156,163,175,.14)', border2: 'rgba(156,163,175,.26)', bar: 'linear-gradient(90deg,#9ca3af,#6b7280)' },
   blue:   { name: 'Blue', accent: '#2563eb', accent2: '#1d4ed8', border: 'rgba(37,99,235,.14)', border2: 'rgba(37,99,235,.28)', bar: 'linear-gradient(90deg,#2563eb,#1d4ed8)' }
 };
+const BG_MODE_PRESETS = {
+  dark:  { name: 'Dark (เดิม)', swatchBg: '#0d0d0f', swatchText: '#f0ede8' },
+  light: { name: 'Light (ขาว)', swatchBg: '#ffffff', swatchText: '#0f172a' }
+};
 const FONT_SIZE_PRESETS = {
   small:  { name: 'เล็ก', zoom: 0.9 },
   normal: { name: 'ปกติ', zoom: 1 },
@@ -2735,6 +2804,9 @@ function saveSettings_(s) { localStorage.setItem('genapp_settings', JSON.stringi
 
 function applySettings_() {
   const s = loadSettings_();
+  // ธีมพื้นหลัง Dark/Light - สลับ data-theme บน <html> (ไม่แตะ font/typography)
+  document.documentElement.setAttribute('data-theme', s.bgMode === 'light' ? 'light' : 'dark');
+
   const theme = THEME_PRESETS[s.theme] || THEME_PRESETS.orange;
   document.documentElement.style.setProperty('--accent', theme.accent);
   document.documentElement.style.setProperty('--accent2', theme.accent2);
@@ -2763,7 +2835,16 @@ function renderSettings() {
   const el = document.getElementById('pageContent');
   let html = pageHeader('⚙️ ตั้งค่า (Settings)', 'ปรับแต่งธีม ฟอนต์ และรูปแบบการแสดงผล');
 
-  html += `<div class="card"><div class="card-title">🎨 เลือก Theme</div><div class="option-grid">`;
+  html += `<div class="card"><div class="card-title">🌗 ธีมพื้นหลังโปรแกรม (Background)</div><div class="option-grid">`;
+  Object.keys(BG_MODE_PRESETS).forEach(key => {
+    const b = BG_MODE_PRESETS[key];
+    const active = (s.bgMode || 'dark') === key ? ' active' : '';
+    html += `<div class="theme-swatch${active}" style="background:${b.swatchBg};color:${b.swatchText};border:1px solid rgba(128,128,128,.3)" onclick="setSetting_('bgMode','${key}')">
+      <div class="theme-swatch-bar" style="background:${b.swatchBg};border:1px solid rgba(128,128,128,.3)"></div>${b.name}</div>`;
+  });
+  html += `</div></div>`;
+
+  html += `<div class="card"><div class="card-title">🎨 เลือก Theme (สีหลัก)</div><div class="option-grid">`;
   Object.keys(THEME_PRESETS).forEach(key => {
     const t = THEME_PRESETS[key];
     const active = (s.theme || 'orange') === key ? ' active' : '';
