@@ -177,12 +177,13 @@ tr:hover td{background:var(--surface2)}
 .tank-visual-wrap{display:flex;align-items:center;gap:14px;margin-top:10px}
 .tank-visual{width:56px;height:100px;border:2px solid var(--border2);border-radius:8px 8px 4px 4px;
   position:relative;overflow:hidden;background:var(--surface);flex-shrink:0}
-.tank-visual-liquid{position:absolute;bottom:0;left:0;right:0;transition:height .8s ease}
+.tank-visual-liquid{position:absolute;bottom:0;left:0;right:0;transition:height .8s ease;z-index:1}
 .tank-visual-wave{position:absolute;top:-5px;left:0;width:200%;height:10px;background:inherit;
   border-radius:45%;animation:tankWaveMove 3.2s linear infinite;opacity:.55}
 @keyframes tankWaveMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.tank-visual-pct{position:absolute;top:4px;left:0;right:0;text-align:center;font-size:10px;color:var(--text);
-  font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+/* z-index สูงกว่า .tank-visual-liquid เสมอ กันของเหลวสีทึบทับตัวเลข % เวลาระดับน้ำมันสูง (เช่น >=90%) */
+.tank-visual-pct{position:absolute;top:4px;left:0;right:0;text-align:center;font-size:10px;color:#ffffff;
+  font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 2px rgba(0,0,0,.9);z-index:2}
 .tank-group{margin-top:6px;padding-top:14px;border-top:1px dashed var(--border)}
 .tank-group:first-of-type{border-top:none;padding-top:0;margin-top:0}
 .tank-group-title{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:10px;
@@ -826,7 +827,7 @@ function renderDayTankCardsForSession_(tankRes) {
     }
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, false);
-    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 90 ? '#2563eb' : '#22c55e'));
     const inspector = tankInspectorName_(r[buildingKey], false);
     return `<div class="tank-card">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClassD[st]}">${statusLabelD[st]}</span></div>
@@ -863,7 +864,7 @@ function renderStoreTankCardsOnly_(tankRes) {
     const actual = parseFloat(r[actualKey]);
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, true);
-    const visualColor = st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e');
+    const visualColor = st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 90 ? '#2563eb' : '#22c55e');
     const name = r[nameKey] || r[buildingKey] || '-';
     return `<div class="tank-card big">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
@@ -920,8 +921,8 @@ function displayGroupLabel_(building) {
   return DISPLAY_GROUP_MAP_[building] || building;
 }
 
-// เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-80% / ฟ้า80-100%)
-//             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-80% / ฟ้า80-100%)
+// เกณฑ์ตายตัว: Store Tank = 3 โซน (ส้ม<50% / เขียว50-90% / ฟ้า90-100%)
+//             เครื่องแต่ละอาคาร = 4 โซน (แดง<40% / ส้ม40-50% / เขียว50-90% / ฟ้า90-100%)
 function statusOfPct(pct, isStore) {
   if (pct === null) return 'ok';
   if (isStore) return pct < 50 ? 'warn' : 'ok';
@@ -933,9 +934,9 @@ function statusOfPct(pct, isStore) {
 function buildGaugeHtml_(full, actual, isStore) {
   if (!full || full <= 0) return '<div class="tank-sub">ไม่มีข้อมูลความจุ (Full Capacity)</div>';
   const zones = isStore
-    ? [{ w: 50, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }]
-    : [{ w: 40, color: '#f85149' }, { w: 10, color: '#ff8c00' }, { w: 30, color: '#22c55e' }, { w: 20, color: '#2563eb' }];
-  const ticks = isStore ? [50, 80] : [40, 50, 80];
+    ? [{ w: 50, color: '#ff8c00' }, { w: 40, color: '#22c55e' }, { w: 10, color: '#2563eb' }]
+    : [{ w: 40, color: '#f85149' }, { w: 10, color: '#ff8c00' }, { w: 40, color: '#22c55e' }, { w: 10, color: '#2563eb' }];
+  const ticks = isStore ? [50, 90] : [40, 50, 90];
 
   const zonesHtml = zones.map(z => `<div class="gauge-zone" style="width:${z.w}%;background:${z.color}"></div>`).join('');
   const ticksHtml = ticks.map(t => `<span class="gauge-tick" style="left:${t}%">${t}%</span>`).join('');
@@ -1093,7 +1094,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     const gKeys = Object.keys(gRows[0]).filter(k => k !== '_row');
     const gCodeKey = gKeys.find(k => /^code/i.test(k.trim()) && !/machine/i.test(k));
     const brandKey = gKeys.find(k => /^(brand|ยี่ห้อ)\b/i.test(k.trim()));
-    const capacityKey = gKeys.find(k => /capacity/i.test(k) && !/full|80\s*%|fuel|storage|litre|liter/i.test(k));
+    const capacityKey = gKeys.find(k => /capacity/i.test(k) && !/full|80\s*%|90\s*%|fuel|storage|litre|liter/i.test(k));
     if (gCodeKey) {
       gRows.forEach(r => {
         const code = r[gCodeKey];
@@ -1141,7 +1142,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
 
     const pct = full > 0 && !isNaN(actual) ? (actual / full) * 100 : null;
     const st = statusOfPct(pct, isStore);
-    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+    const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 90 ? '#2563eb' : '#22c55e'));
     const tankVisualHtml = `<div class="tank-visual-wrap">${renderTankVisual_(pct, visualColor)}<div style="flex:1">${buildGaugeHtml_(full, actual, isStore)}</div></div>`;
     const inspector = tankInspectorName_(r[buildingKey], isStore);
     return `<div class="tank-card${big ? ' big' : ''} ${blinkClass[st]}" id="${ownCode ? 'tankcard_' + cssId(ownCode) : ''}" data-code="${escAttr(ownCode)}">
@@ -1194,7 +1195,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
     html += `<div class="card ${hasCritical ? 'blink-fast' : 'blink-slow'}">
       <div class="card-title ${titleBlink}" style="color:var(--rose)">🔴 ต้องสั่งซื้อเชื้อเพลิงด่วน (${alerts.length} รายการ)</div>`;
     alerts.forEach(a => {
-      const target = a.full * 0.8; // เป้าหมายเติมกลับไปที่ 80% ของความจุ
+      const target = a.full * 0.9; // เป้าหมายเติมกลับไปที่ 90% ของความจุ
       const need = Math.max(0, target - a.actual);
       const rowBlink = a.st === 'critical' ? 'blink-text-fast' : 'blink-text-slow';
       html += `<div class="alert-row ${a.st === 'critical' ? 'blink-fast' : 'blink-slow'}">
@@ -1202,7 +1203,7 @@ function renderFuelTankDashboard_(tankRes, genRes) {
           <span class="status-badge ${a.st === 'critical' ? 'status-danger' : 'status-warn'} ${rowBlink}">
             ${a.st === 'critical' ? '🔴 ด่วนที่สุด' : '🟠 ต้องสั่งเติม'}</span></div>
         <div style="font-size:12px">คงเหลือ ${a.actual.toLocaleString()} L (${a.pct.toFixed(0)}%)
-          <span style="color:var(--rose)"> · ต้องเติมประมาณ ${need.toLocaleString(undefined,{maximumFractionDigits:0})} L ให้ถึง 80%</span></div>
+          <span style="color:var(--rose)"> · ต้องเติมประมาณ ${need.toLocaleString(undefined,{maximumFractionDigits:0})} L ให้ถึง 90%</span></div>
       </div>`;
     });
     html += '</div>';
@@ -1584,7 +1585,7 @@ function renderMachineFuelBox_(m) {
   const st = statusOfPct(pct, false);
   const statusLabelD = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด' };
   const statusClassD = { ok: 'status-ok', warn: 'status-warn', critical: 'status-danger' };
-  const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 80 ? '#2563eb' : '#22c55e'));
+  const visualColor = st === 'critical' ? '#f85149' : (st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 90 ? '#2563eb' : '#22c55e'));
   const inspector = tankInspectorName_(m.building, false);
   const note = String(m.tank.note || '').trim();
 
@@ -2532,7 +2533,7 @@ function renderFuel() {
       const tKeys = Object.keys(trows[0]).filter(k => k !== '_row');
       const tCodeKey = tKeys.find(k => /^code/i.test(k) && !/machine/i.test(k));
       const tFullKey = tKeys.find(k => /^full/i.test(k));
-      const tP80Key = tKeys.find(k => /80/.test(k));
+      const tP90Key = tKeys.find(k => /90/.test(k));
       const tActualKey = tKeys.find(k => /actual/i.test(k));
       if (tCodeKey) {
         trows.forEach(r => {
@@ -2540,14 +2541,14 @@ function renderFuel() {
           if (!code) return;
           TANK_MAP[code] = {
             full: tFullKey ? parseFloat(r[tFullKey]) || 0 : 0,
-            p80: tP80Key ? parseFloat(r[tP80Key]) || 0 : 0,
+            p90: tP90Key ? parseFloat(r[tP90Key]) || 0 : 0,
             actual: tActualKey ? parseFloat(r[tActualKey]) : NaN
           };
         });
       }
     }
 
-    // dropdown เลือกเครื่องกำเนิดไฟฟ้า -> auto-fill Company/Building/Code + Full/80%/50% Storage + Fuel Level Before
+    // dropdown เลือกเครื่องกำเนิดไฟฟ้า -> auto-fill Company/Building/Code + Full/90%/50% Storage + Fuel Level Before
     let genPickerHtml = '';
     FUEL_GEN_MAP = {};
     if (genRes.ok && (genRes.rows || []).length) {
@@ -2570,7 +2571,7 @@ function renderFuel() {
           building: buildingKey ? r[buildingKey] : '',
           code: code,
           full: full,
-          p80: (tank && tank.p80) ? tank.p80 : full * 0.8,
+          p90: (tank && tank.p90) ? tank.p90 : full * 0.9,
           actual: tank ? tank.actual : NaN
         };
         const actualTxt = tank && !isNaN(tank.actual) ? ` — คงเหลือ ${tank.actual.toLocaleString()}L` : '';
@@ -2584,19 +2585,19 @@ function renderFuel() {
           <select id="fuelGenPicker" onchange="applyFuelGenPreset(this)">${options}</select>
         </div>
         <div style="font-size:11px;color:var(--text2);margin-top:8px">
-          ระบบดึง Full/80%/คงเหลือล่าสุด จาก "Re-Order Point_Fuel" มาเติมให้อัตโนมัติ
+          ระบบดึง Full/90%/คงเหลือล่าสุด จาก "Re-Order Point_Fuel" มาเติมให้อัตโนมัติ
           และจะอัปเดตยอดคงเหลือกลับไปที่ชีตนั้นทันทีหลังบันทึกสำเร็จ
         </div>
       </div>`;
     }
 
-    // ฝั่งซ้าย = เฉพาะข้อมูลเครื่อง (Company/Building/Code) เท่านั้น ส่วน Full/80%/50%/Before ย้ายไปรวมกับ Add/After ฝั่งขวาตามที่ขอ
+    // ฝั่งซ้าย = เฉพาะข้อมูลเครื่อง (Company/Building/Code) เท่านั้น ส่วน Full/90%/50%/Before ย้ายไปรวมกับ Add/After ฝั่งขวาตามที่ขอ
     const isLeftRefField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(normH_(h));
     const leftHeaders = headers.filter(isLeftRefField_);
-    // เรียงลำดับฝั่งขวาให้คงที่: Date -> Time -> Purpose -> Full -> 80% -> 50% -> Add -> Before -> After -> Used -> (ที่เหลือตามลำดับเดิม)
+    // เรียงลำดับฝั่งขวาให้คงที่: Date -> Time -> Purpose -> Full -> 90% -> 50% -> Add -> Before -> After -> Used -> (ที่เหลือตามลำดับเดิม)
     const RIGHT_FIELD_ORDER_ = [
       h => /^date$|วันที่/i.test(h), h => /^time$|เวลา/i.test(h), h => /purpose|วัตถุประสงค์/i.test(h),
-      h => /full.*storage/i.test(h), h => /80%.*storage/i.test(h), h => /50%.*storage/i.test(h),
+      h => /full.*storage/i.test(h), h => /90%.*storage/i.test(h), h => /50%.*storage/i.test(h),
       h => /fuel level add/i.test(h), h => /fuel level before/i.test(h), h => /fuel level after/i.test(h),
       h => /fuel used/i.test(h)
     ];
@@ -2607,7 +2608,7 @@ function renderFuel() {
       return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" class="ff-prefilled"></div>`;
     }
     // Purpose of Use = dropdown (Emergency Use / Weekly Test Run / Refuel Only / Other ระบุเหตุผลเอง)
-    // Full/80%/50%/Before = ดึงข้อมูลอัตโนมัติเหมือนเดิม (class ff-prefilled) เพียงแค่ย้ายตำแหน่งมาอยู่ฝั่งขวา
+    // Full/90%/50%/Before = ดึงข้อมูลอัตโนมัติเหมือนเดิม (class ff-prefilled) เพียงแค่ย้ายตำแหน่งมาอยู่ฝั่งขวา
     // Add/After/Used เทาและปิดการกรอกไว้ก่อน จนกว่าจะเลือก Purpose (After ใช้ร่วมกันทุกกรณี เพราะต้อง sync ยอดคงเหลือ
     // ล่าสุดกลับ Re-Order Point_Fuel คอลัมน์ J เหมือนกันหมด)
     function renderRightField_(h) {
@@ -2632,7 +2633,7 @@ function renderFuel() {
           </select>
           <input id="fuelPurposeOther" class="ff-need-input hidden" placeholder="ระบุเหตุผลอื่น..." style="margin-top:6px"></div>`;
       }
-      if (/full.*storage/i.test(trimmed) || /80%.*storage/i.test(trimmed) || /50%.*storage/i.test(trimmed) || /fuel level before/i.test(trimmed)) {
+      if (/full.*storage/i.test(trimmed) || /90%.*storage/i.test(trimmed) || /50%.*storage/i.test(trimmed) || /fuel level before/i.test(trimmed)) {
         return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" class="ff-prefilled"></div>`;
       }
       if (/fuel level add/i.test(trimmed)) {
@@ -2693,7 +2694,7 @@ function renderFuel() {
   });
 }
 
-// เรียกเมื่อเลือกเครื่องจาก dropdown -> auto-fill Company/Building/Code + Full/80%/50% Storage + Fuel Level Before
+// เรียกเมื่อเลือกเครื่องจาก dropdown -> auto-fill Company/Building/Code + Full/90%/50% Storage + Fuel Level Before
 // ช่องที่ auto-fill แล้ว (ดึงจาก Re-Order Point_Fuel) จะใส่ class "ff-prefilled" (สีพื้นปกติ/readonly ตามไตล์เดิม)
 // ส่วนช่องที่ "ต้องกรอกใหม่หลังเติม/ใช้น้ำมัน" จะใส่ class "ff-need-input" (แถบขาวไฮไลต์) ตามที่ขอ
 function applyFuelGenPreset(selectEl) {
@@ -2709,7 +2710,7 @@ function applyFuelGenPreset(selectEl) {
     else if (/building|อาคาร/i.test(h)) { el.value = info.building; el.classList.add('ff-prefilled'); }
     else if (/^code/i.test(h)) { el.value = info.code; el.classList.add('ff-prefilled'); }
     else if (/full.*storage/i.test(h) && info.full) { el.value = info.full; el.classList.add('ff-prefilled'); }
-    else if (/80%.*storage/i.test(h) && info.p80) { el.value = info.p80; el.classList.add('ff-prefilled'); }
+    else if (/90%.*storage/i.test(h) && info.p90) { el.value = info.p90; el.classList.add('ff-prefilled'); }
     else if (/50%.*storage/i.test(h) && info.full) { el.value = (info.full * 0.5).toFixed(1); el.classList.add('ff-prefilled'); }
     else if (/fuel level before/i.test(h) && !isNaN(info.actual)) { el.value = info.actual; el.classList.add('ff-prefilled'); }
     else { el.value = ''; el.classList.add('ff-need-input'); } // ช่องอื่นๆ (Operator/Approved/Remarks ฯลฯ) = ต้องกรอกใหม่ทุกครั้ง
@@ -2827,7 +2828,7 @@ function submitFuel() {
 /* ---------- FUEL TANK STATUS ---------- */
 function renderFuelTank() {
   const el = document.getElementById('pageContent');
-  el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', 'Full / 80% / Min / Actual Remain / ROP') + '<div class="loading">กำลังโหลด...</div>';
+  el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', 'Full / 90% / Min / Actual Remain / ROP') + '<div class="loading">กำลังโหลด...</div>';
   callApi('getFuelTankStatus', {}).then(res => {
     if (!res.ok) { el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const headers = res.headers || [];
