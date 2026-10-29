@@ -439,7 +439,8 @@ const TECHNICIANS = [
   { building: 'BITEC II',     name: 'นายกฤษณะ จันเจียม',   empId: '23000139', dept: 'Engineering Maintenance',   position: 'Technical Executive' },
   { building: 'BTB',          name: 'นายกมล บุญทาป',       empId: '21000050', dept: 'Property Management',       position: 'Technical Supervisor' },
   { building: 'UBC II',       name: 'นายภาณุพงศ์ ปรุงเรณุ', empId: '21000171', dept: 'Property Management',       position: 'Technician' },
-  { building: 'BTE',          name: 'นายเสรี การะวงค์', empId: '21000037', dept: 'ENS',                       position: 'Technical Supervisor' }
+  { building: 'BTE',          name: 'นายเสรี การะวงค์', empId: '21000037', dept: 'ENS',                       position: 'Technical Supervisor' },
+  { building: 'S23-Gen room', name: 'Mr.Akapong Prasopjan', empId: '',       dept: '',                          position: '' }
 ];
 
 // ผู้รับผิดชอบถังน้ำมันสำรองส่วนกลาง (Storage Tank 1-2) แยกจากช่างประจำแต่ละอาคาร
@@ -450,6 +451,11 @@ function tankInspectorName_(building, isStore) {
   if (isStore) return STORAGE_TANK_INSPECTOR;
   const t = TECHNICIANS.find(t => t.building === building);
   return t ? t.name : '';
+}
+
+// สร้างรหัสสำรองใช้แทน Code เมื่อแถวในชีตไม่มีค่า Code (เช่น Store Tank) เพื่อให้ยังกดปุ่ม Update ได้
+function slugCode_(s) {
+  return String(s || '').trim().toUpperCase().replace(/[^A-Z0-9ก-๙]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 // สร้างตัวเลือก dropdown ช่างที่รับผิดชอบ กรองเฉพาะอาคารที่ระบุ (ถ้าไม่มีคนตรงอาคาร หรือยังไม่รู้อาคาร -> โชว์ทั้งหมดแทน)
@@ -866,6 +872,8 @@ function renderStoreTankCardsOnly_(tankRes) {
     const st = statusOfPct(pct, true);
     const visualColor = st === 'warn' ? '#ff8c00' : (pct !== null && pct >= 90 ? '#2563eb' : '#22c55e');
     const name = r[nameKey] || r[buildingKey] || '-';
+    // Store Tank มักไม่มีค่า Code ในชีต Re-Order Point_Fuel -> ใช้ชื่อถังสร้างรหัสสำรองแทน ให้ปุ่ม Update ใช้งานได้เสมอ
+    const code = (codeKey && r[codeKey]) || slugCode_(name);
     return `<div class="tank-card big">
       <div class="tank-name">${escHtml(name)} <span class="status-badge ${statusClass[st]}">${statusLabel[st]}</span></div>
       <div class="tank-sub">${escHtml(r[buildingKey] || '')}</div>
@@ -876,7 +884,7 @@ function renderStoreTankCardsOnly_(tankRes) {
       </div>
       ${ropKey ? `<div class="tank-nums"><span>ROP: ${r[ropKey]}</span><span></span></div>` : ''}
       <div class="tank-inspector">👤 ผู้ตรวจสอบล่าสุด: ${escHtml(STORAGE_TANK_INSPECTOR)}</div>
-      ${codeKey && r[codeKey] ? `<button class="btn small" style="margin-top:10px;width:100%" onclick="openFuelUpdateForCard_('${escAttr(r[codeKey])}')">✏️ Update</button>` : ''}
+      ${code ? `<button class="btn small" style="margin-top:10px;width:100%" onclick="openFuelUpdateForCard_('${escAttr(code)}')">✏️ Update</button>` : ''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -2549,8 +2557,8 @@ function renderFuel() {
     }
 
     // dropdown เลือกเครื่องกำเนิดไฟฟ้า -> auto-fill Company/Building/Code + Full/90%/50% Storage + Fuel Level Before
-    let genPickerHtml = '';
     FUEL_GEN_MAP = {};
+    let genOptions = '<option value="">— เลือกเครื่องกำเนิดไฟฟ้า —</option>';
     if (genRes.ok && (genRes.rows || []).length) {
       const rows = genRes.rows;
       const companyKey = Object.keys(rows[0]).find(k => /company|บริษัท/i.test(k) && k !== '_row');
@@ -2559,7 +2567,6 @@ function renderFuel() {
       const nameKey = Object.keys(rows[0]).find(k => /name|ชื่อ/i.test(k) && k !== '_row');
       const fullKey = Object.keys(rows[0]).find(k => /full.*capacity|full.*litre/i.test(k) && k !== '_row');
 
-      let options = '<option value="">— เลือกเครื่องกำเนิดไฟฟ้า —</option>';
       rows.forEach(r => {
         const code = codeKey ? r[codeKey] : '';
         if (!code) return;
@@ -2576,20 +2583,50 @@ function renderFuel() {
         };
         const actualTxt = tank && !isNaN(tank.actual) ? ` — คงเหลือ ${tank.actual.toLocaleString()}L` : '';
         const label = `${r[buildingKey] || ''} · ${r[nameKey] || ''} (${code})${actualTxt}`;
-        options += `<option value="${escAttr(code)}">${escHtml(label)}</option>`;
+        genOptions += `<option value="${escAttr(code)}">${escHtml(label)}</option>`;
       });
+    }
 
-      genPickerHtml = `<div class="card">
-        <div class="card-title">เลือกเครื่องกำเนิดไฟฟ้า</div>
+    // เพิ่ม Store Tank (ถังสำรองส่วนกลาง) เข้า dropdown + FUEL_GEN_MAP ด้วย เพื่อให้ปุ่ม Update บนการ์ด Store Tank ใช้งานได้
+    // (Store Tank มักไม่มีค่า Code ในชีต -> ใช้รหัสสำรองจากชื่อถังแทน ต้องตรงกับที่ใช้ใน renderStoreTankCardsOnly_)
+    if (tankRes.ok && (tankRes.rows || []).length) {
+      const trows = tankRes.rows;
+      const tKeys = Object.keys(trows[0]).filter(k => k !== '_row');
+      const tCodeKey2 = tKeys.find(k => /^code/i.test(k) && !/machine/i.test(k));
+      const tNameKey2 = tKeys.find(k => /generator no|name|ชื่อ/i.test(k));
+      const tBuildingKey2 = tKeys.find(k => /building|อาคาร/i.test(k));
+      const tFullKey2 = tKeys.find(k => /^full/i.test(k));
+      const tP90Key2 = tKeys.find(k => /90/.test(k));
+      const tActualKey2 = tKeys.find(k => /actual/i.test(k));
+      trows.filter(r => /store\s*tank/i.test(String(r[tNameKey2] || r[tBuildingKey2] || ''))).forEach(r => {
+        const name = r[tNameKey2] || r[tBuildingKey2] || '-';
+        const code = (tCodeKey2 && r[tCodeKey2]) || slugCode_(name);
+        if (!code || FUEL_GEN_MAP[code]) return;
+        const full = tFullKey2 ? parseFloat(r[tFullKey2]) || 0 : 0;
+        const actual = tActualKey2 ? parseFloat(r[tActualKey2]) : NaN;
+        FUEL_GEN_MAP[code] = {
+          company: '',
+          building: r[tBuildingKey2] || name,
+          code: code,
+          full: full,
+          p90: tP90Key2 ? (parseFloat(r[tP90Key2]) || full * 0.9) : full * 0.9,
+          actual: actual
+        };
+        const actualTxt = !isNaN(actual) ? ` — คงเหลือ ${actual.toLocaleString()}L` : '';
+        genOptions += `<option value="${escAttr(code)}">ถังสำรองกลาง · ${escHtml(name)} (${code})${actualTxt}</option>`;
+      });
+    }
+
+    const genPickerHtml = `<div class="card">
+        <div class="card-title">เลือกเครื่องกำเนิดไฟฟ้า / ถังสำรอง</div>
         <div class="field" style="max-width:460px">
-          <select id="fuelGenPicker" onchange="applyFuelGenPreset(this)">${options}</select>
+          <select id="fuelGenPicker" onchange="applyFuelGenPreset(this)">${genOptions}</select>
         </div>
         <div style="font-size:11px;color:var(--text2);margin-top:8px">
           ระบบดึง Full/90%/คงเหลือล่าสุด จาก "Re-Order Point_Fuel" มาเติมให้อัตโนมัติ
           และจะอัปเดตยอดคงเหลือกลับไปที่ชีตนั้นทันทีหลังบันทึกสำเร็จ
         </div>
       </div>`;
-    }
 
     // ฝั่งซ้าย = เฉพาะข้อมูลเครื่อง (Company/Building/Code) เท่านั้น ส่วน Full/90%/50%/Before ย้ายไปรวมกับ Add/After ฝั่งขวาตามที่ขอ
     const isLeftRefField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(normH_(h));
