@@ -2585,26 +2585,26 @@ function renderFuel() {
       </div>`;
     }
 
-    // ช่องที่ auto-fill จาก Re-Order Point_Fuel ตอนเลือกเครื่อง (ดูเงื่อนไขเดียวกันใน applyFuelGenPreset) -> จัดไว้ฝั่งซ้าย "ข้อมูลอ้างอิง"
-    const isPrefillField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(h) ||
-      /full.*storage|80%.*storage|50%.*storage|fuel level before/i.test(h);
-    // เรียงลำดับฝั่งซ้ายให้คงที่: Company -> Building -> Code -> Full -> 80% -> 50% -> Before (ตามที่ขอ)
-    const LEFT_FIELD_ORDER_ = [
-      h => /company|บริษัท/i.test(h), h => /building|อาคาร/i.test(h), h => /^code/i.test(h),
+    // ฝั่งซ้าย = เฉพาะข้อมูลเครื่อง (Company/Building/Code) เท่านั้น ส่วน Full/80%/50%/Before ย้ายไปรวมกับ Add/After ฝั่งขวาตามที่ขอ
+    const isLeftRefField_ = h => /company|บริษัท|building|อาคาร|^code/i.test(h);
+    const leftHeaders = headers.filter(isLeftRefField_);
+    // เรียงลำดับฝั่งขวาให้คงที่: Date -> Time -> Purpose -> Full -> 80% -> 50% -> Add -> Before -> After -> Used -> (ที่เหลือตามลำดับเดิม)
+    const RIGHT_FIELD_ORDER_ = [
+      h => /^date$|วันที่/i.test(h), h => /^time$|เวลา/i.test(h), h => /purpose|วัตถุประสงค์/i.test(h),
       h => /full.*storage/i.test(h), h => /80%.*storage/i.test(h), h => /50%.*storage/i.test(h),
-      h => /fuel level before/i.test(h)
+      h => /fuel level add/i.test(h), h => /fuel level before/i.test(h), h => /fuel level after/i.test(h),
+      h => /fuel used/i.test(h)
     ];
-    const leftFieldRank_ = h => { for (let i = 0; i < LEFT_FIELD_ORDER_.length; i++) if (LEFT_FIELD_ORDER_[i](h)) return i; return 999; };
-    const leftHeaders = headers.filter(isPrefillField_).sort((a, b) => leftFieldRank_(a) - leftFieldRank_(b));
-    const rightHeaders = headers.filter(h => !isPrefillField_(h));
+    const rightFieldRank_ = h => { for (let i = 0; i < RIGHT_FIELD_ORDER_.length; i++) if (RIGHT_FIELD_ORDER_[i](h)) return i; return 999; };
+    const rightHeaders = headers.filter(h => !isLeftRefField_(h)).sort((a, b) => rightFieldRank_(a) - rightFieldRank_(b));
 
     function renderLeftField_(h) {
       return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" class="ff-prefilled"></div>`;
     }
-    // ช่อง Purpose of Use = dropdown ตามที่ขอ; Add/After/Used เทาและปิดการกรอกไว้ก่อน จนกว่าจะเลือก Purpose
-    // (After ใช้ร่วมกันทั้งกรณี Emergency/Weekly Test [ยอดหลังใช้งาน] และ Refuel/Add [ยอดหลังเติม] เพราะต้องนำไป sync
-    //  เป็นยอดคงเหลือล่าสุดใน Re-Order Point_Fuel คอลัมน์ J เหมือนกัน ส่วน Add โชว์เฉพาะตอนเลือก Refuel Only/Add
-    //  และ Used โชว์เฉพาะตอนเลือก Emergency Use/Weekly Test Run)
+    // Purpose of Use = dropdown (Emergency Use / Weekly Test Run / Refuel Only / Other ระบุเหตุผลเอง)
+    // Full/80%/50%/Before = ดึงข้อมูลอัตโนมัติเหมือนเดิม (class ff-prefilled) เพียงแค่ย้ายตำแหน่งมาอยู่ฝั่งขวา
+    // Add/After/Used เทาและปิดการกรอกไว้ก่อน จนกว่าจะเลือก Purpose (After ใช้ร่วมกันทุกกรณี เพราะต้อง sync ยอดคงเหลือ
+    // ล่าสุดกลับ Re-Order Point_Fuel คอลัมน์ J เหมือนกันหมด)
     function renderRightField_(h) {
       const trimmed = h.trim();
       if (/^date$|วันที่/i.test(trimmed)) {
@@ -2623,8 +2623,12 @@ function renderFuel() {
             <option value="Emergency Use">Emergency Use</option>
             <option value="Weekly Test Run">Weekly Test Run</option>
             <option value="Refuel Only">Refuel Only</option>
-            <option value="Add">Add</option>
-          </select></div>`;
+            <option value="Other">Other (ระบุเหตุผลอื่น)</option>
+          </select>
+          <input id="fuelPurposeOther" class="ff-need-input hidden" placeholder="ระบุเหตุผลอื่น..." style="margin-top:6px"></div>`;
+      }
+      if (/full.*storage/i.test(trimmed) || /80%.*storage/i.test(trimmed) || /50%.*storage/i.test(trimmed) || /fuel level before/i.test(trimmed)) {
+        return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" class="ff-prefilled"></div>`;
       }
       if (/fuel level add/i.test(trimmed)) {
         return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" data-role="fuel-add" class="ff-disabled-gray" disabled oninput="autoCalcFuelAfter_()"></div>`;
@@ -2645,8 +2649,8 @@ function renderFuel() {
         <span class="ff-legend-dot" style="background:var(--surface2);border:1px solid var(--border)"></span> ช่องเทา = เลือก Purpose of Use ก่อนจึงจะกรอกได้
       </div>
       <div class="fuel-form-cols" id="fuelFormGrid">
-        <div class="fuel-form-col">
-          <div class="fuel-col-title">ข้อมูลอ้างอิง (ดึงจากระบบอัตโนมัติ)</div>
+        <div class="fuel-form-col" style="flex:0 0 220px">
+          <div class="fuel-col-title">ข้อมูลเครื่อง</div>
           ${leftHeaders.map(renderLeftField_).join('')}
         </div>
         <div class="fuel-form-col">
@@ -2711,7 +2715,8 @@ function applyFuelGenPreset(selectEl) {
 
 // สลับการแสดง/ปิดช่อง Add(เติมเข้า)/After(ยอดหลังเติม-ใช้)/Used(ปริมาณใช้) ตาม Purpose of Use ที่เลือก
 // - Emergency Use / Weekly Test Run -> เปิดช่อง After + Used (กรอกยอดหลังใช้งาน), ปิด Add
-// - Refuel Only / Add               -> เปิดช่อง Add + After (กรอกยอดหลังเติม), ปิด Used
+// - Refuel Only                     -> เปิดช่อง Add + After (กรอกยอดหลังเติม), ปิด Used
+// - Other (ระบุเหตุผลอื่น)            -> โชว์ช่องกรอกเหตุผลเอง + เปิดทั้ง Add/After/Used ให้เลือกกรอกตามจริง
 // - ยังไม่เลือก                      -> เกรย์ทั้งหมด
 function onFuelPurposeChange(selectEl) {
   const val = selectEl.value;
@@ -2720,8 +2725,10 @@ function onFuelPurposeChange(selectEl) {
   const addEl = grid.querySelector('[data-role="fuel-add"]');
   const afterEl = grid.querySelector('[data-role="fuel-after"]');
   const usedEl = grid.querySelector('[data-role="fuel-used"]');
+  const otherEl = document.getElementById('fuelPurposeOther');
   const isUse = (val === 'Emergency Use' || val === 'Weekly Test Run');
-  const isRefuel = (val === 'Refuel Only' || val === 'Add');
+  const isRefuel = (val === 'Refuel Only');
+  const isOther = (val === 'Other');
   function setFieldState_(el, active) {
     if (!el) return;
     el.disabled = !active;
@@ -2729,17 +2736,21 @@ function onFuelPurposeChange(selectEl) {
     el.classList.toggle('ff-disabled-gray', !active);
     if (!active) el.value = '';
   }
-  setFieldState_(addEl, isRefuel);
-  setFieldState_(afterEl, isUse || isRefuel); // After ใช้ร่วมกันทั้ง 2 กรณี เพื่อ sync ยอดคงเหลือล่าสุดกลับ Re-Order Point_Fuel
-  setFieldState_(usedEl, isUse);
+  setFieldState_(addEl, isRefuel || isOther);
+  setFieldState_(afterEl, isUse || isRefuel || isOther); // After ใช้ร่วมกันทุกกรณี เพื่อ sync ยอดคงเหลือล่าสุดกลับ Re-Order Point_Fuel
+  setFieldState_(usedEl, isUse || isOther);
+  if (otherEl) {
+    otherEl.classList.toggle('hidden', !isOther);
+    if (!isOther) otherEl.value = '';
+  }
 }
 
-// เมื่อเลือก Refuel Only/Add แล้วกรอกปริมาณ Add -> คำนวณ After = Before + Add ให้อัตโนมัติ (แก้ไขเองได้)
+// เมื่อเลือก Refuel Only แล้วกรอกปริมาณ Add -> คำนวณ After = Before + Add ให้อัตโนมัติ (แก้ไขเองได้)
 function autoCalcFuelAfter_() {
   const grid = document.getElementById('fuelFormGrid');
   if (!grid) return;
   const purposeEl = grid.querySelector('[data-role="fuel-purpose"]');
-  if (!purposeEl || (purposeEl.value !== 'Refuel Only' && purposeEl.value !== 'Add')) return;
+  if (!purposeEl || purposeEl.value !== 'Refuel Only') return;
   const addEl = grid.querySelector('[data-role="fuel-add"]');
   const afterEl = grid.querySelector('[data-role="fuel-after"]');
   const beforeEl = Array.from(grid.querySelectorAll('[data-header]')).find(el => /fuel level before/i.test(el.dataset.header || ''));
@@ -2773,7 +2784,7 @@ function submitFuel() {
   const grid = document.getElementById('fuelFormGrid');
   const inputs = grid.querySelectorAll('[data-header]'); // ครอบคลุมทั้ง input และ select (Purpose of Use)
   const values = {}; let buildingCode = '';
-  let purposeVal = '';
+  let purposeVal = '', purposeHeader = '';
   inputs.forEach(inp => {
     let val = inp.value;
     if (inp.dataset.type === 'date' && val) {
@@ -2782,11 +2793,21 @@ function submitFuel() {
     }
     values[inp.dataset.header] = val;
     if (/building|อาคาร/i.test(inp.dataset.header)) buildingCode = val;
-    if (inp.dataset.role === 'fuel-purpose') purposeVal = val;
+    if (inp.dataset.role === 'fuel-purpose') { purposeVal = val; purposeHeader = inp.dataset.header; }
   });
   if (!purposeVal) {
     alert('กรุณาเลือก Purpose of Use ก่อนบันทึก');
     return;
+  }
+  // เลือก "Other" -> ใช้ข้อความที่ผู้ใช้ระบุเองแทนคำว่า "Other" ตอนบันทึกลงชีต
+  if (purposeVal === 'Other') {
+    const otherEl = document.getElementById('fuelPurposeOther');
+    const customText = otherEl ? otherEl.value.trim() : '';
+    if (!customText) {
+      alert('กรุณาระบุเหตุผลอื่น (Other)');
+      return;
+    }
+    values[purposeHeader] = customText;
   }
   const msg = document.getElementById('fuelSubmitMsg');
   msg.textContent = 'กำลังบันทึก...';
