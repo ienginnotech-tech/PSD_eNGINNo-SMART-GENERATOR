@@ -2431,7 +2431,7 @@ function renderFuelReportPreview_(res) {
         <td>${escHtml(m.genNo)}</td>
         <td style="text-align:right">${fmtInt_(m.capacity)}</td>
         <td style="text-align:right">${fmtInt_(m.balance)} (${Math.round((m.pct || 0) * 100)}%)</td>
-        <td style="text-align:right">${diffText}</td>
+        <td style="text-align:center">${diffText}</td>
       </tr>`;
     });
   });
@@ -2451,7 +2451,7 @@ function renderFuelReportPreview_(res) {
     <div class="table-wrap"><table>
       <thead><tr><th>Location</th><th>Gen no.</th><th>Capacity (L)</th><th>Balance (L)</th><th>Capacity@80% Diff</th></tr></thead>
       <tbody>${genRows || '<tr><td colspan="5" class="tr-empty">ไม่พบเครื่องในสิทธิ์ของท่าน</td></tr>'}
-        <tr style="font-weight:700"><td colspan="2">Total</td><td style="text-align:right">${fmtInt_(res.generatorTotal?.capacity)}</td><td></td><td style="text-align:right">${fmtInt_(res.generatorTotal?.diff80)}</td></tr>
+        <tr style="font-weight:700"><td colspan="2">Total</td><td style="text-align:right">${fmtInt_(res.generatorTotal?.capacity)}</td><td></td><td style="text-align:center">${fmtInt_(res.generatorTotal?.diff80)}</td></tr>
       </tbody>
     </table></div>
   </div>`;
@@ -2869,12 +2869,14 @@ function renderFuelTank() {
   callApi('getFuelTankStatus', {}).then(res => {
     if (!res.ok) { el.innerHTML = pageHeader('สถานะถังเชื้อเพลิง', '') + `<div class="card err-msg">${escHtml(res.error)}</div>`; return; }
     const headers = res.headers || [];
+    // คอลัมน์ที่หัวตารางว่างเปล่า (ไม่มีข้อความ) ให้บีบความกว้างแคบสุดแทนที่จะกินพื้นที่เท่าคอลัมน์อื่น
+    const narrowCol_ = h => !String(h || '').trim() ? ' style="width:1%;white-space:nowrap"' : '';
     let tableHtml = '<div class="card"><div class="table-wrap"><table><thead><tr>';
-    headers.forEach(h => tableHtml += `<th>${escHtml(h)}</th>`);
+    headers.forEach(h => tableHtml += `<th${narrowCol_(h)}>${escHtml(h)}</th>`);
     tableHtml += '</tr></thead><tbody>';
     (res.rows || []).forEach(r => {
       tableHtml += '<tr>';
-      headers.forEach(h => tableHtml += `<td>${escHtml(r[h] ?? '')}</td>`);
+      headers.forEach(h => tableHtml += `<td${narrowCol_(h)}>${escHtml(r[h] ?? '')}</td>`);
       tableHtml += '</tr>';
     });
     tableHtml += '</tbody></table></div></div>';
