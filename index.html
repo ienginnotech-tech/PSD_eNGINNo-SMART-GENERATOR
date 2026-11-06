@@ -2132,6 +2132,17 @@ function groupOf_(header) {
 
 const PERIOD_OPTIONS = ['Week', 'Month', 'Quarter', 'Annual', 'Emergency', 'PM'];
 
+// จัดประเภท header กลุ่ม "เงื่อนไขการทดสอบ" (3 คอลัมน์แยกในชีต: Unloaded / Loaded / PM & Emergency)
+// ให้รวมเป็น dropdown เดียวในฟอร์ม (เลือกได้ทีละประเภท) -> เช็ก "unload" ก่อนเสมอ เพราะคำว่า "load" เป็นส่วนหนึ่งของ "unload" ด้วย
+function pmFunctionKind_(h) {
+  const n = h.toLowerCase();
+  if (/unload/.test(n)) return 'unload';
+  if (/pm\s*&?\s*emergency/.test(n)) return 'pm';
+  if (/function/.test(n) && /load/.test(n)) return 'load';
+  return null;
+}
+const PM_FUNCTION_KIND_LABEL_ = { unload: 'Unload (ไม่จ่ายโหลด)', load: 'Load (จ่ายโหลด)', pm: 'PM & Emergency load (จ่ายโหลดกรณีฉุกเฉิน)' };
+
 // เปลี่ยนข้อความ label ที่แสดงผลให้อ่านง่ายขึ้น โดยไม่แตะชื่อคอลัมน์จริงในชีต (ยังใช้ header เดิม submit ตามปกติ)
 function friendlyLabel_(h) {
   if (/^หัวหน้าตรวจสอบ$/i.test(h.trim())) return 'หัวหน้างานลงชื่อ';
@@ -2151,6 +2162,24 @@ function renderFieldLabelHtml_(h) {
   return th ? `${escHtml(en)}<br><span class="label-th">${escHtml(th)}</span>` : escHtml(en);
 }
 let PM_GEN_MAP = {}; // code -> {company, building, code}
+let PM_FUNCTION_HEADERS_MAP = {}; // kind (unload/load/pm) -> header จริงในชีตของ dropdown "เงื่อนไขการทดสอบ"
+
+// เปลี่ยนประเภทที่เลือกใน dropdown "เงื่อนไขการทดสอบ" -> สลับ data-header ของช่องรายละเอียดให้ตรงกับคอลัมน์จริงในชีต
+function onPmFunctionKindChange_(selectEl) {
+  const detail = document.getElementById('pmf_function_detail');
+  if (!detail) return;
+  const kind = selectEl.value;
+  if (kind && PM_FUNCTION_HEADERS_MAP[kind]) {
+    detail.disabled = false;
+    detail.placeholder = 'รายละเอียดเพิ่มเติม';
+    detail.dataset.header = PM_FUNCTION_HEADERS_MAP[kind];
+  } else {
+    detail.disabled = true;
+    detail.placeholder = 'เลือกประเภทการทดสอบก่อน';
+    detail.value = '';
+    delete detail.dataset.header;
+  }
+}
 
 function renderPmForm(period, presetGenerator) {
   const el = document.getElementById('pageContent');
@@ -2236,7 +2265,11 @@ function renderPmForm(period, presetGenerator) {
           <input id="pm_sup_detail" data-header="รายละเอียดเพิ่มเติม (หัวหน้า)">
         </div>`;
       }
+      // รวม 3 คอลัมน์ Unloaded/Loaded/PM&Emergency เป็น dropdown เดียว + ช่องรายละเอียดเดียว (เลือกได้ทีละประเภท)
+      const functionFieldHeaders = {}; // kind -> header จริงในชีต
       groups[g].forEach(h => {
+        const kind = pmFunctionKind_(h);
+        if (kind) { functionFieldHeaders[kind] = h; return; }
         const inputId = 'pmf_' + cssId(h);
         let preset = '';
         if (presetGenerator) {
@@ -2289,6 +2322,22 @@ function renderPmForm(period, presetGenerator) {
             <input id="${inputId}" data-header="${escAttr(h)}" value="${escAttr(preset)}"${hintAttr}></div>`;
         }
       });
+      // UI รวมของ "เงื่อนไขการทดสอบ": dropdown เลือกประเภทเดียว (Unload/Load/PM & Emergency) + ช่องรายละเอียดเดียว
+      // data-header ของช่องรายละเอียดจะถูกสลับไปตามประเภทที่เลือก (เขียนกลับลงคอลัมน์จริงในชีตที่ตรงกับประเภทนั้น)
+      if (Object.keys(functionFieldHeaders).length) {
+        PM_FUNCTION_HEADERS_MAP = functionFieldHeaders;
+        formHtml += `<div class="field" style="min-width:100%">
+          <label>ประเภทการทดสอบ</label>
+          <select id="pmf_function_kind" onchange="onPmFunctionKindChange_(this)">
+            <option value="">— เลือกประเภท —</option>
+            ${Object.keys(functionFieldHeaders).map(k => `<option value="${escAttr(k)}">${escHtml(PM_FUNCTION_KIND_LABEL_[k] || k)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" style="min-width:100%">
+          <label>รายละเอียด</label>
+          <input id="pmf_function_detail" placeholder="เลือกประเภทการทดสอบก่อน" disabled>
+        </div>`;
+      }
       if (g === 'หัวหน้าพิจารณา') {
         const todayIso2 = new Date().toISOString().slice(0, 10);
         formHtml += `<div class="field">
@@ -2668,7 +2717,16 @@ function renderFuel() {
             <option value="Refuel Only">Refuel Only</option>
             <option value="Other">Other (ระบุเหตุผลอื่น)</option>
           </select>
-          <input id="fuelPurposeOther" class="ff-need-input hidden" placeholder="ระบุเหตุผลอื่น..." style="margin-top:6px"></div>`;
+          <input id="fuelPurposeOther" class="ff-need-input hidden" placeholder="ระบุเหตุผลอื่น..." style="margin-top:6px">
+          <div id="refuelSourceWrap" class="hidden" style="margin-top:6px">
+            <select id="refuelSourceSelect" class="ff-need-input" onchange="onRefuelSourceChange_(this)">
+              <option value="Buy">Buy (ซื้อมาเติมใหม่)</option>
+              <option value="Transfer">Transfer (ย้ายจากถังสำรองอื่นมาเติม)</option>
+            </select>
+            <select id="refuelSourceTank" class="ff-need-input hidden" style="margin-top:6px">
+              <option value="">— เลือกถังที่ย้ายมา —</option>
+            </select>
+          </div></div>`;
       }
       if (/full.*storage/i.test(trimmed) || /90%.*storage/i.test(trimmed) || /50%.*storage/i.test(trimmed) || /fuel level before/i.test(trimmed)) {
         return `<div class="field"><label>${escHtml(h)}</label><input id="ff_${cssId(h)}" data-header="${escAttr(h)}" class="ff-prefilled"></div>`;
@@ -2770,6 +2828,8 @@ function onFuelPurposeChange(selectEl) {
   const afterEl = grid.querySelector('[data-role="fuel-after"]');
   const usedEl = grid.querySelector('[data-role="fuel-used"]');
   const otherEl = document.getElementById('fuelPurposeOther');
+  const refuelSourceWrap = document.getElementById('refuelSourceWrap');
+  const refuelSourceSelect = document.getElementById('refuelSourceSelect');
   const isUse = (val === 'Emergency Use' || val === 'Weekly Test Run');
   const isRefuel = (val === 'Refuel Only');
   const isOther = (val === 'Other');
@@ -2787,6 +2847,30 @@ function onFuelPurposeChange(selectEl) {
     otherEl.classList.toggle('hidden', !isOther);
     if (!isOther) otherEl.value = '';
   }
+  // Refuel Only -> โชว์ตัวเลือกที่มาน้ำมัน Buy/Transfer (ค่าเริ่มต้น Buy ไม่ต้องเลือกถังต้นทาง)
+  if (refuelSourceWrap) refuelSourceWrap.classList.toggle('hidden', !isRefuel);
+  if (isRefuel && refuelSourceSelect) {
+    refuelSourceSelect.value = 'Buy';
+    onRefuelSourceChange_(refuelSourceSelect);
+  }
+}
+
+// สลับ Buy/Transfer: Transfer ต้องเลือกถังต้นทาง (รายชื่อเดียวกับ dropdown เลือกเครื่อง/ถังด้านบน ไม่รวมถังปลายทางที่เลือกอยู่)
+function onRefuelSourceChange_(selectEl) {
+  const tankSelect = document.getElementById('refuelSourceTank');
+  if (!tankSelect) return;
+  const isTransfer = selectEl.value === 'Transfer';
+  tankSelect.classList.toggle('hidden', !isTransfer);
+  if (!isTransfer) { tankSelect.value = ''; return; }
+  const destCode = document.getElementById('fuelGenPicker') ? document.getElementById('fuelGenPicker').value : '';
+  let opts = '<option value="">— เลือกถังที่ย้ายมา —</option>';
+  Object.keys(FUEL_GEN_MAP).forEach(code => {
+    if (code === destCode) return; // กันเลือกถังเดียวกับปลายทาง
+    const info = FUEL_GEN_MAP[code];
+    const actualTxt = !isNaN(info.actual) ? ` — คงเหลือ ${info.actual.toLocaleString()}L` : '';
+    opts += `<option value="${escAttr(code)}">${escHtml(info.building || '')} (${code})${actualTxt}</option>`;
+  });
+  tankSelect.innerHTML = opts;
 }
 
 // เมื่อเลือก Refuel Only แล้วกรอกปริมาณ Add -> คำนวณ After = Before + Add ให้อัตโนมัติ (แก้ไขเองได้)
@@ -2853,9 +2937,44 @@ function submitFuel() {
     }
     values[purposeHeader] = customText;
   }
+
+  // Refuel Only -> ตรวจสอบที่มาน้ำมัน (Buy/Transfer) ถ้า Transfer ต้องเลือกถังต้นทาง และส่งข้อมูลให้ backend ตัดยอดถังต้นทางด้วย
+  let refuelMeta = null;
+  if (purposeVal === 'Refuel Only') {
+    const sourceSel = document.getElementById('refuelSourceSelect');
+    const sourceVal = sourceSel ? sourceSel.value : 'Buy';
+    if (sourceVal === 'Transfer') {
+      const tankSel = document.getElementById('refuelSourceTank');
+      const sourceCode = tankSel ? tankSel.value : '';
+      if (!sourceCode) {
+        alert('กรุณาเลือกถังที่ย้ายน้ำมันมา (Transfer)');
+        return;
+      }
+      const addKey = Object.keys(values).find(k => /fuel level add/i.test(normH_(k)));
+      const addAmount = addKey ? parseFloat(values[addKey]) || 0 : 0;
+      const sourceInfo = FUEL_GEN_MAP[sourceCode];
+      if (sourceInfo && !isNaN(sourceInfo.actual) && addAmount > sourceInfo.actual) {
+        if (!confirm(`ถัง ${sourceInfo.building || sourceCode} เหลืออยู่ ${sourceInfo.actual.toLocaleString()} L แต่จะย้ายออก ${addAmount.toLocaleString()} L (เกินยอดคงเหลือ) ต้องการบันทึกต่อหรือไม่?`)) {
+          return;
+        }
+      }
+      refuelMeta = { source: 'Transfer', sourceCode, amount: addAmount };
+      // บันทึกที่มาไว้ในช่องหมายเหตุด้วย (เผื่อชีตไม่มีคอลัมน์แยกสำหรับข้อมูลนี้)
+      const noteKey = Object.keys(values).find(k => /หมายเหตุ|remark/i.test(normH_(k)));
+      if (noteKey) {
+        const tag = `[Transfer from ${sourceInfo ? (sourceInfo.building || sourceCode) : sourceCode} (${sourceCode})]`;
+        values[noteKey] = values[noteKey] ? `${tag} ${values[noteKey]}` : tag;
+      }
+    } else {
+      refuelMeta = { source: 'Buy' };
+      const noteKey = Object.keys(values).find(k => /หมายเหตุ|remark/i.test(normH_(k)));
+      if (noteKey && !values[noteKey]) values[noteKey] = '[Buy]';
+    }
+  }
+
   const msg = document.getElementById('fuelSubmitMsg');
   msg.textContent = 'กำลังบันทึก...';
-  callApi('submitFuelLog', { buildingCode, values }).then(res => {
+  callApi('submitFuelLog', { buildingCode, values, refuel: refuelMeta }).then(res => {
     msg.textContent = res.ok ? '✓ บันทึกสำเร็จ' : ('✕ ' + res.error);
     msg.style.color = res.ok ? 'var(--green)' : 'var(--rose)';
     if (res.ok) setTimeout(renderFuel, 1200);
