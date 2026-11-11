@@ -294,6 +294,126 @@ tr:hover td{background:var(--surface2)}
 }
 #menuBtn{display:none;background:var(--surface2);border:1px solid var(--border2);color:var(--text);
   padding:8px 12px;border-radius:var(--r);cursor:pointer;margin-bottom:10px}
+/* ===================== 3D SMART GENERATOR ===================== */
+.top-mode{display:flex;gap:8px}
+.top-mode-btn{border:1px solid var(--border2);background:var(--surface2);color:var(--text2);padding:7px 16px;border-radius:8px;
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;white-space:nowrap}
+.top-mode-btn:hover{color:var(--accent);border-color:var(--accent)}
+.top-mode-btn.active{background:var(--accent);color:#0d0d0f;border-color:var(--accent);cursor:default}
+#view3d{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;background:#eef2f6;color:#0f172a;
+  overflow:hidden;font-family:var(--font)}
+#view3d.open{display:flex}
+#view3d *{box-sizing:border-box}
+#view3d .top-mode-btn{background:#fff;color:#334155;border-color:#cbd5e1}
+#view3d .top-mode-btn.active{background:#ff8c00;color:#fff;border-color:#ff8c00}
+.v3-head{display:flex;align-items:center;gap:14px;padding:9px 16px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;flex-shrink:0}
+.v3-brand{font-weight:800;color:#ff8c00;font-size:15px;white-space:nowrap;line-height:1.15}
+.v3-brand small{display:block;color:#64748b;font-size:10px;font-weight:700;letter-spacing:1px}
+.v3-crumb{color:#64748b;font-size:11px;flex:1;min-width:160px}
+.v3-head-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.v3-sync{font-size:11px;color:#16a34a;white-space:nowrap}
+.v3-sync.err{color:#dc2626}
+.v3-iconbtn{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:12px}
+.v3-iconbtn:hover{border-color:#ff8c00;color:#ff8c00}
+.v3-tabs{display:flex;gap:8px;padding:10px 16px 0;overflow-x:auto;flex-shrink:0}
+.v3-tab{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;
+  font:inherit;font-size:12px;font-weight:700;color:#1e293b;cursor:pointer;white-space:nowrap}
+.v3-tab:hover{border-color:#ff8c00}
+.v3-tab.active{background:#ff8c00;border-color:#ff8c00;color:#fff}
+.v3-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.v3-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:10px 16px;flex-shrink:0}
+.v3-kpi{background:#fff;border:1px solid #e2e8f0;border-left:3px solid var(--c,#ff8c00);border-radius:8px;padding:8px 12px;min-width:0}
+.v3-kpi-l{font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3-kpi-v{font-size:20px;font-weight:800;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--c,#0f172a)}
+.v3-kpi-s{font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3-body{flex:1;display:flex;gap:10px;padding:0 16px 14px;min-height:0}
+.v3-stage{position:relative;flex:1;min-width:0;background:linear-gradient(#f8fafc,#e3e9f0);border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+#v3Canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#v3Canvas:active{cursor:grabbing}
+.v3-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.v3-pill{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;background:#0f172a;color:#fff;border:2px solid #22c55e;
+  border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;display:flex;gap:5px;align-items:center;
+  box-shadow:0 2px 8px rgba(15,23,42,.3);will-change:transform}
+.v3-pill .b{background:#ff8c00;color:#fff;border-radius:4px;padding:0 5px;font-size:10px}
+.v3-pill .b.al{background:#f85149}
+.v3-pill.st-warn{border-color:#ff8c00}
+.v3-pill.st-critical{border-color:#f85149;animation:v3pill .6s steps(2) infinite}
+.v3-pill.dim{opacity:.3}
+@keyframes v3pill{50%{background:#7f1d1d}}
+.v3-tag{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;background:rgba(255,255,255,.96);border:1px solid #cbd5e1;
+  border-left:4px solid var(--c,#94a3b8);border-radius:6px;padding:4px 7px;font-size:10px;color:#0f172a;white-space:nowrap;
+  box-shadow:0 2px 6px rgba(15,23,42,.18);line-height:1.35;will-change:transform}
+.v3-tag b{font-size:11px}
+.v3-tag .kv{color:#64748b}
+.v3-tag .bar{height:4px;background:#e2e8f0;border-radius:2px;margin:3px 0;overflow:hidden;min-width:110px}
+.v3-tag .bar i{display:block;height:100%;background:var(--c)}
+.v3-tag.chip{padding:1px 6px;border-left-width:3px;font-weight:700;font-size:10px}
+.v3-tag.mid .bar{min-width:64px}
+.v3-tag.sel{outline:2px solid #ff8c00;z-index:5}
+.v3-tag.st-critical{animation:v3blink .5s steps(2) infinite}
+.v3-tag.st-warn{animation:v3blink 1.2s steps(2) infinite}
+@keyframes v3blink{50%{background:#fee2e2}}
+.v3-tools{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.v3-tool{width:34px;height:34px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#334155;cursor:pointer;
+  font:inherit;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+.v3-tool:hover{border-color:#ff8c00;color:#ff8c00}
+.v3-tool.on{background:#ff8c00;color:#fff;border-color:#ff8c00}
+.v3-legend{position:absolute;left:10px;bottom:10px;background:rgba(255,255,255,.94);border:1px solid #e2e8f0;border-radius:8px;
+  padding:6px 10px;font-size:10px;color:#334155;max-width:calc(100% - 20px);line-height:1.7;z-index:3}
+.v3-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin:0 3px 0 8px}
+.v3-legend i:first-of-type{margin-left:4px}
+.v3-hint{position:absolute;right:10px;bottom:10px;font-size:10px;color:#64748b;background:rgba(255,255,255,.88);padding:4px 8px;border-radius:6px;z-index:3}
+.v3-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;
+  background:rgba(238,242,246,.9);font-size:13px;color:#334155;text-align:center;padding:20px;z-index:6}
+.v3-loading.show{display:flex}
+.v3-btn{border:none;background:#ff8c00;color:#fff;border-radius:6px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.v3-btn.ghost{background:#fff;color:#334155;border:1px solid #cbd5e1}
+.v3-btn.sm{padding:4px 9px;font-size:11px}
+.v3-side{width:350px;flex-shrink:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow-y:auto;padding:14px;font-size:12px}
+.v3-side.collapsed{display:none}
+.v3-side-h{font-size:15px;font-weight:800;margin:0 0 4px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.v3-side-h2{font-size:13px;font-weight:800;margin:16px 0 8px}
+.v3-muted{color:#64748b;font-size:11px;line-height:1.55;margin:0 0 10px}
+.v3-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.v3-tbl th{text-align:left;color:#64748b;font-weight:600;padding:5px 4px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+.v3-tbl td{padding:6px 4px;border-bottom:1px solid #f1f5f9}
+.v3-tbl tr.click{cursor:pointer}
+.v3-tbl tr.click:hover td{background:#fff7ed}
+.v3-tbl .num{text-align:right;white-space:nowrap}
+.v3-alert{border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer}
+.v3-alert.st-warn{border-color:#fed7aa;background:#fff7ed}
+.v3-alert:hover{border-color:#ff8c00}
+.v3-alert b{font-size:12px}
+.v3-alert .need{color:#dc2626;font-size:11px}
+.v3-ok{border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;border-radius:8px;padding:8px 10px}
+.v3-card{border:1px solid #e2e8f0;border-left:4px solid var(--c,#94a3b8);border-radius:8px;padding:9px 10px;margin-bottom:8px;cursor:pointer;background:#fff}
+.v3-card:hover{border-color:#fdba74}
+.v3-card.sel{box-shadow:0 0 0 2px #ff8c00;background:#fffaf3}
+.v3-card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.v3-card-h b{font-size:12px}
+.v3-card-sub{color:#64748b;font-size:10px;margin:2px 0 6px;line-height:1.5}
+.v3-badge{font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#dcfce7;color:#15803d}
+.v3-badge.st-warn{background:#ffedd5;color:#c2410c}
+.v3-badge.st-critical{background:#fee2e2;color:#b91c1c}
+.v3-badge.st-shared{background:#ede9fe;color:#6d28d9}
+.v3-badge.st-nodata{background:#f1f5f9;color:#64748b}
+.v3-gauge{position:relative;height:10px;border-radius:5px;overflow:visible;display:flex;margin:4px 0 2px}
+.v3-gauge span{height:100%}
+.v3-gauge span:first-child{border-radius:5px 0 0 5px}
+.v3-gauge span:last-of-type{border-radius:0 5px 5px 0}
+.v3-gauge em{position:absolute;top:-3px;width:3px;height:16px;background:#0f172a;border-radius:2px;transform:translateX(-50%)}
+.v3-nums{display:flex;justify-content:space-between;font-size:11px;color:#334155;margin-top:3px}
+.v3-note{background:#f5f3ff;color:#5b21b6;border-radius:6px;padding:5px 7px;font-size:10px;margin-top:6px;line-height:1.5;white-space:pre-line}
+.v3-card-btns{display:flex;gap:6px;margin-top:8px}
+@media (max-width:900px){
+  #view3d{overflow-y:auto}
+  .v3-body{flex-direction:column;flex:none}
+  .v3-stage{flex:none;height:62vh}
+  .v3-side{width:auto}
+  .v3-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .v3-hint{display:none}
+  .v3-crumb{display:none}
+}
 </style>
 </head>
 <body>
@@ -383,6 +503,48 @@ tr:hover td{background:var(--surface2)}
   <div class="main">
     <button id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰ เมนู</button>
     <div id="pageContent"></div>
+  </div>
+</div>
+
+
+<!-- ============ 3D SMART GENERATOR (โหมดมุมมอง 3 มิติ) ============ -->
+<div id="view3d">
+  <div class="v3-head">
+    <div class="v3-brand">⚡ PSD_eNGINNo<small>SMART GENERATOR · 3D</small></div>
+    <div class="v3-crumb" id="v3Crumb">GENERATOR · DAY TANK · STORAGE TANK</div>
+    <div class="v3-head-right">
+      <span class="v3-sync" id="v3Sync">-</span>
+      <button class="v3-iconbtn" onclick="v3Refresh_(false)" title="ดึงข้อมูลล่าสุดจากหลังบ้าน">⟳ ซิงก์</button>
+      <div class="top-mode">
+        <button class="top-mode-btn active">🧊 3D</button>
+        <button class="top-mode-btn" onclick="close3DView()">🏠 หลังบ้าน</button>
+      </div>
+    </div>
+  </div>
+  <div class="v3-tabs" id="v3Tabs"></div>
+  <div class="v3-kpis" id="v3Kpis"></div>
+  <div class="v3-body">
+    <div class="v3-stage" id="v3Stage">
+      <canvas id="v3Canvas"></canvas>
+      <div class="v3-labels" id="v3Labels"></div>
+      <div class="v3-tools">
+        <button class="v3-tool" onclick="v3Focus_('all')" title="กลับมุมมองภาพรวม">⌂</button>
+        <button class="v3-tool" id="v3RotBtn" onclick="v3ToggleRotate_()" title="หมุนอัตโนมัติ">⟳</button>
+        <button class="v3-tool" onclick="v3Zoom_(0.75)" title="ซูมเข้า">+</button>
+        <button class="v3-tool" onclick="v3Zoom_(1.33)" title="ซูมออก">−</button>
+        <button class="v3-tool on" id="v3TagBtn" onclick="v3ToggleTags_()" title="แสดง/ซ่อนป้ายข้อมูลถัง">🏷</button>
+        <button class="v3-tool" id="v3GlassBtn" onclick="v3ToggleGlass_()" title="ผนังอาคารทึบขึ้น/โปร่งใส">◐</button>
+        <button class="v3-tool" onclick="v3ToggleSide_()" title="แสดง/ซ่อนแผงด้านขวา">❯</button>
+      </div>
+      <div class="v3-legend">
+        <b>ระดับน้ำมัน Day Tank</b><i style="background:#f85149"></i>&lt;40%<i style="background:#ff8c00"></i>40–49%<i style="background:#22c55e"></i>50–89%<i style="background:#2563eb"></i>≥90%
+        <br><b>Storage Tank</b><i style="background:#ff8c00"></i>&lt;50%<i style="background:#22c55e"></i>50–89%<i style="background:#2563eb"></i>≥90%
+        <br><b>ไฟบนเครื่อง</b> กะพริบเร็ว = ต้องสั่งเติมด่วนที่สุด · กะพริบช้า = ต้องสั่งเติม · <span style="color:#7c3aed">เส้นม่วงประ</span> = ใช้ถังร่วม
+      </div>
+      <div class="v3-hint">ลาก = หมุน · คลิกขวา/Shift+ลาก = เลื่อน · ล้อเมาส์ = ซูม · คลิกเครื่อง/ถัง = ดูรายละเอียด · ดับเบิลคลิก = ภาพรวม</div>
+      <div class="v3-loading" id="v3Loading"></div>
+    </div>
+    <div class="v3-side" id="v3Side"></div>
   </div>
 </div>
 
@@ -647,6 +809,8 @@ function enterApp() {
   startClock_();
   applySettings_();
   navigate(PRELOAD_GENID ? 'pmScan' : 'dashboard');
+  // ลิงก์ที่ลงท้าย #3d -> เปิดหน้า 3D ทันทีหลัง login
+  if (!PRELOAD_GENID && location.hash === '#3d') setTimeout(open3DView, 0);
 }
 
 const NAV_GROUPS = [
@@ -741,8 +905,11 @@ function pageHeader(title, desc) {
     buildingBadge = `<div class="header-building-badge">🏢 ${escHtml(label)}</div>`;
   }
   const clockHtml = `<div id="headerClock"><div id="clockDate"></div><div id="clockTime"></div></div>`;
+  // ปุ่มสลับโหมด: 3D (มุมมองสามมิติ) / หลังบ้าน (โปรแกรมเดิมทั้งหมด)
+  const modeHtml = `<div class="top-mode"><button class="top-mode-btn" onclick="open3DView()" title="เปิดมุมมอง 3D อาคาร เครื่องกำเนิดไฟฟ้า และถังน้ำมัน">🧊 3D</button>
+    <button class="top-mode-btn active" title="หลังบ้าน (โปรแกรมเดิม)">🏠 หลังบ้าน</button></div>`;
   return `<div class="topbar"><div><div class="page-title">${title}</div><div class="page-desc">${desc||''}</div></div>
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">${buildingBadge}${clockHtml}</div></div>`;
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">${modeHtml}${buildingBadge}${clockHtml}</div></div>`;
 }
 
 /* ---------- DASHBOARD ---------- */
@@ -3306,5 +3473,1209 @@ function escHtml(s) {
   }
 })();
 </script>
+<script>
+/* =====================================================================
+   3D SMART GENERATOR (โหมดมุมมอง 3 มิติ)
+   - ใช้ข้อมูลชุดเดียวกับ Dashboard หลังบ้าน (getDashboardBundle) -> สิทธิ์เห็นเครื่องตามอาคารของผู้ใช้เหมือนหลังบ้านทุกประการ
+   - ระดับน้ำมัน / สีแถบ / สถานะแจ้งเตือน ใช้เกณฑ์เดียวกับหลังบ้าน (statusOfPct) ไม่มีเกณฑ์แยกของตัวเอง
+   - ระหว่างเปิดหน้า 3D จะดึงข้อมูลใหม่ทุก 60 วินาที ถ้าข้อมูลหลังบ้านเปลี่ยน ระดับน้ำมันในถังจะค่อยๆ ขยับไปค่าใหม่เอง
+   - แก้ตำแหน่งเครื่อง/ชั้น ได้ที่ V3_PLACE, แก้อาคาร/ขนาด/จำนวนชั้น ได้ที่ V3_BUILDINGS
+   ===================================================================== */
+const V3_LIBS = [
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
+];
+const V3_POLL_MS = 60000;
+const V3_FH = 4; // ความสูงต่อชั้น (หน่วยในฉาก 3D)
+
+// ---------- ผังอาคาร (ตำแหน่ง x,z / บล็อกอาคาร / รายชื่อชั้นจากล่างขึ้นบน; 'G' = ชั้นพื้นดิน) ----------
+const V3_BUILDINGS = [
+  { id: 'bitec1', name: 'BITEC I', tab: 'BITEC I', x: -76, z: -40, match: ['BITEC I'],
+    info: 'Generator 01, 02 + Day Tank · ชั้น 2 (ห้องเดียวกัน)\nMobile Generator M1 (500 kVA), M2 (33 kVA) · วางข้าง Sub station',
+    blocks: [{ id: 'main', ox: 0, oz: 0, w: 26, d: 18, floors: ['G', '2', '3'] }],
+    substation: { ox: -4, oz: 16 } },
+  { id: 'bitec2', name: 'BITEC II', tab: 'BITEC II', x: -38, z: -40, match: ['BITEC II'],
+    info: 'Generator 01–04, 07, 08 + Day Tank · ชั้น 2M (ห้องเดียวกัน)\nGEN-01/02 ใช้ถังร่วมกับ GEN-03, 04, 07, 08',
+    blocks: [{ id: 'main', ox: 0, oz: 0, w: 34, d: 20, floors: ['G', '2', '2M', '3'] }] },
+  { id: 'storage', name: 'Storage Tank I–II', tab: 'Storage I–II', x: -2, z: -42, match: [],
+    info: 'ถังน้ำมันสำรองส่วนกลาง BITEC BURI · Storage Tank I + Storage Tank II\nใช้ส่งน้ำมันขึ้น Day Tank ของแต่ละอาคาร',
+    blocks: [], storage: { w: 24, d: 15 } },
+  { id: 'btb', name: 'BTB', tab: 'BTB', x: 27, z: -40, match: ['BTB'],
+    info: 'Generator 01, 02 (Gen No.5, No.6) + Day Tank 01, 02 · ชั้น 2M\nStorage Tank: ไม่มี',
+    blocks: [{ id: 'main', ox: 0, oz: 0, w: 18, d: 16, floors: ['G', '2', '2M', '3'] }] },
+  { id: 'bte', name: 'BTE', tab: 'BTE', x: -72, z: 32, match: ['BTE'],
+    info: 'Storage Tank · ชั้น G\nGenerator 01 + Day Tank 01 · อาคาร C ชั้น 4\nGenerator 02, 03 + Day Tank 02, 03 · อาคาร B ชั้น 5\nA: The Mall · B: Office ภิรัช · C: ลานจอดรถ/ห้องเครื่อง · D: Office ลูกค้า ชั้น 5–44',
+    blocks: [
+      { id: 'A', label: 'A: The Mall', ox: -9, oz: 8, w: 20, d: 13, floors: ['G', '2', '3', '4'] },
+      { id: 'B', label: 'B: Office ภิรัช', ox: 11, oz: 8, w: 14, d: 13, floors: ['G', '2', '3', '4', '5', '6'] },
+      { id: 'C', label: 'C: ลานจอดรถ/ห้องเครื่อง', ox: -9, oz: -8, w: 20, d: 13, floors: ['G', '2', '3', '4', '5'] },
+      { id: 'D', label: 'D: Office ลูกค้า ชั้น 5–44', ox: 11, oz: -8, w: 13, d: 13, floors: ['G', '2', '3', '4', '5', '…', '…', '…', '…', '…', '…', '44'] }
+    ],
+    placeholderTank: { ox: -9, oz: 18.5, label: 'Storage Tank BTE (ยังไม่มีข้อมูลในหลังบ้าน)', title: 'Storage Tank BTE (ชั้น G)' } },
+  { id: 'ubc', name: 'UBC II', tab: 'UBC II', x: -32, z: 32, match: ['UBC II'],
+    info: 'Storage Tank (Stock Tank) · ชั้น G\nGenerator 01 + Day Tank 01 · ชั้น B2',
+    blocks: [{ id: 'main', ox: 0, oz: 0, w: 18, d: 16, floors: ['B2', 'B1', 'G', '2', '3', '4', '5', '6'] }] },
+  { id: 'sls', name: 'SLS · Summer LaSalle', tab: 'SLS', x: 8, z: 32, match: ['SL-P1', 'SL-Campus A'],
+    info: 'Generator 01 + Day Tank 01 · อาคาร P1 (ลานจอดรถ) ชั้น 2\nGenerator 02 · ชั้น G (สนามหญ้าด้านนอกอาคาร)\nStorage Tank: ไม่มี',
+    blocks: [
+      { id: 'P1', label: 'P1 (ลานจอดรถ)', ox: -8, oz: 0, w: 13, d: 14, floors: ['G', '2', '3'] },
+      { id: 'CA', label: 'Campus A', ox: 9, oz: -4, w: 13, d: 12, floors: ['G', '2', '3', '4'] }
+    ],
+    lawn: { ox: 9, oz: 8.5, w: 13, d: 7 } },
+  { id: 's23', name: 'S23 · Sama Living Asoke', tab: 'S23', x: 44, z: 32, match: ['S23-Gen room', 'S23'],
+    info: 'Sama Living Asoke · Generator 01 + Day Tank 01 · ชั้น B2\nStorage Tank: มี',
+    blocks: [{ id: 'main', ox: 0, oz: 0, w: 14, d: 14, floors: ['B2', 'B1', 'G', '2', '3', '4', '5', '6', '7', '8'] }],
+    placeholderTank: { ox: 0, oz: 10.5, label: 'Storage Tank S23 (ยังไม่มีข้อมูลในหลังบ้าน)', title: 'Storage Tank S23' } }
+];
+
+// ---------- ตำแหน่งเครื่อง/ถังแต่ละตัว (key = รหัสเครื่องตัวพิมพ์ใหญ่) ----------
+// เครื่องใหม่ที่ไม่มีในรายการนี้จะถูกวางอัตโนมัติที่ชั้นพื้นดินของอาคารตามคอลัมน์ Building ในหลังบ้าน
+const V3_PLACE = {
+  'BITEC-I-GEN-01':   { b: 'bitec1', blk: 'main', floor: '2', slot: 0, loc: 'ชั้น 2 (ห้องเดียวกัน)' },
+  'BITEC-I-GEN-02':   { b: 'bitec1', blk: 'main', floor: '2', slot: 1, loc: 'ชั้น 2 (ห้องเดียวกัน)' },
+  'BITEC-I-GEN-500':  { b: 'bitec1', zone: 'substation', slot: 0, loc: 'Mobile Generator · ข้าง Sub station', mobile: true },
+  'BITEC-I-GEN-33':   { b: 'bitec1', zone: 'substation', slot: 1, loc: 'Mobile Generator · ข้าง Sub station', mobile: true },
+  'BITEC-II-GEN-01':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 0, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BITEC-II-GEN-02':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 1, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BITEC-II-GEN-03':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 2, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BITEC-II-GEN-04':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 3, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BITEC-II-GEN-07':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 4, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BITEC-II-GEN-08':  { b: 'bitec2', blk: 'main', floor: '2M', slot: 5, loc: 'ชั้น 2M (ห้องเดียวกัน)' },
+  'BTB-GEN-05':       { b: 'btb', blk: 'main', floor: '2M', slot: 0, loc: 'ชั้น 2M' },
+  'BTB-GEN-06':       { b: 'btb', blk: 'main', floor: '2M', slot: 1, loc: 'ชั้น 2M' },
+  'BTE-GEN-01':       { b: 'bte', blk: 'C', floor: '4', slot: 0, loc: 'อาคาร C ชั้น 4' },
+  'BTE-GEN-02':       { b: 'bte', blk: 'B', floor: '5', slot: 0, loc: 'อาคาร B ชั้น 5' },
+  'BTE-GEN-03':       { b: 'bte', blk: 'B', floor: '5', slot: 1, loc: 'อาคาร B ชั้น 5' },
+  'UBC II-GEN-01':    { b: 'ubc', blk: 'main', floor: 'B2', slot: 0, loc: 'ชั้น B2' },
+  'UBC II-STOCK TANK':{ b: 'ubc', blk: 'main', floor: 'G', slot: 0, loc: 'Storage (Stock Tank) · ชั้น G', room: 'Stock Tank' },
+  'SL-GEN-01':        { b: 'sls', blk: 'P1', floor: '2', slot: 0, loc: 'อาคาร P1 (ลานจอดรถ) ชั้น 2' },
+  'SL-GEN-02':        { b: 'sls', zone: 'lawn', slot: 0, loc: 'ชั้น G (สนามหญ้าด้านนอกอาคาร)' },
+  'S23-GEN-01':       { b: 's23', blk: 'main', floor: 'B2', slot: 0, loc: 'ชั้น B2' }
+};
+
+const V3_HOME = { target: [-16, 4, -4], dir: [0.15, 0.9, 1], dist: 168 };
+const V3_STATUS_LABEL = { ok: '🟢 ปกติ', warn: '🟠 ต้องสั่งเติม', critical: '🔴 ต้องสั่งเติมด่วนที่สุด', shared: '🔗 ใช้ถังร่วม', nodata: '⚪ ไม่มีข้อมูลถัง' };
+
+const V3 = {
+  ready: false, loading: null, open: false, renderer: null, scene: null, camera: null, controls: null, world: null,
+  raf: 0, poll: 0, last: 0, t0: performance.now(), items: {}, bld: {}, labels: [], pickEquip: [], pickBld: [],
+  focus: 'all', sel: null, data: null, keySig: '', showTags: true, solidGlass: false, anim: null, syncAt: null, sideOpen: true
+};
+
+/* ---------------- เปิด/ปิดโหมด 3D ---------------- */
+function open3DView() {
+  const v = document.getElementById('view3d');
+  if (!v) return;
+  v.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  V3.open = true;
+  try { history.replaceState(null, '', '#3d'); } catch (e) {}
+  v3SetLoading_('กำลังโหลดโมเดล 3D...');
+  v3LoadLibs_().then(() => {
+    if (!V3.ready) v3Init_();
+    v3Resize_();
+    V3.last = performance.now();
+    cancelAnimationFrame(V3.raf);
+    v3Loop_();
+    return v3Refresh_(true);
+  }).catch(err => {
+    v3SetLoading_('⚠️ ' + escHtml(err.message) + '<br><button class="v3-btn" onclick="open3DView()">ลองใหม่</button> <button class="v3-btn ghost" onclick="close3DView()">กลับหลังบ้าน</button>');
+  });
+  clearInterval(V3.poll);
+  V3.poll = setInterval(() => { if (V3.open && !document.hidden) v3Refresh_(false); }, V3_POLL_MS);
+}
+
+function close3DView() {
+  V3.open = false;
+  const v = document.getElementById('view3d');
+  if (v) v.classList.remove('open');
+  document.body.style.overflow = '';
+  cancelAnimationFrame(V3.raf); V3.raf = 0;
+  clearInterval(V3.poll);
+  try { if (location.hash === '#3d') history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  // กลับมาหลังบ้านแล้วโหลดหน้าปัจจุบันใหม่ เผื่อข้อมูลเปลี่ยนระหว่างอยู่ในหน้า 3D
+  if (typeof navigate === 'function' && typeof CURRENT_PAGE !== 'undefined' && CURRENT_PAGE === 'dashboard') navigate('dashboard');
+}
+
+function v3LoadLibs_() {
+  if (window.THREE && THREE.OrbitControls) return Promise.resolve();
+  if (V3.loading) return V3.loading;
+  const load = src => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error('โหลดไลบรารี 3D ไม่สำเร็จ (ตรวจสอบอินเทอร์เน็ต) : ' + src));
+    document.head.appendChild(s);
+  });
+  V3.loading = (window.THREE ? Promise.resolve() : load(V3_LIBS[0]))
+    .then(() => (THREE.OrbitControls ? null : load(V3_LIBS[1])));
+  V3.loading.catch(() => { V3.loading = null; });
+  return V3.loading;
+}
+
+function v3SetLoading_(html) {
+  const el = document.getElementById('v3Loading');
+  if (!el) return;
+  el.innerHTML = html || '';
+  el.classList.toggle('show', !!html);
+}
+
+/* ---------------- สร้างฉาก ---------------- */
+function v3Init_() {
+  const canvas = document.getElementById('v3Canvas');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  } catch (e) {
+    throw new Error('อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ WebGL จึงแสดงภาพ 3D ไม่ได้');
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#eef2f6');
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 1500);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xaab4c0, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+  sun.position.set(70, 140, 90);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -130, right: 130, top: 110, bottom: -110, near: 10, far: 400 });
+  scene.add(sun);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.screenSpacePanning = true;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minDistance = 6;
+  controls.maxDistance = 420;
+  controls.autoRotateSpeed = 0.6;
+
+  Object.assign(V3, { renderer, scene, camera, controls, ready: true });
+  v3BuildEnv_();
+  v3SetCam_(V3_HOME.target, V3_HOME.dir, V3_HOME.dist);
+
+  // คลิก (ไม่ใช่ลาก) = เลือกเครื่อง/อาคาร, ดับเบิลคลิก = กลับภาพรวม
+  let down = null;
+  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; V3.anim = null; });
+  canvas.addEventListener('pointerup', e => {
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+    v3Pick_(e);
+  });
+  canvas.addEventListener('dblclick', () => v3Focus_('all'));
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  if (window.ResizeObserver) new ResizeObserver(() => v3Resize_()).observe(document.getElementById('v3Stage'));
+  window.addEventListener('resize', v3Resize_);
+}
+
+function v3Resize_() {
+  if (!V3.ready) return;
+  const st = document.getElementById('v3Stage');
+  const w = st.clientWidth || 1, h = st.clientHeight || 1;
+  V3.renderer.setSize(w, h, false);
+  V3.camera.aspect = w / h;
+  V3.camera.updateProjectionMatrix();
+}
+
+function v3Mat_(color, opts) {
+  return new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.75, metalness: 0.08 }, opts || {}));
+}
+function v3Box_(w, h, d, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x || 0, y || 0, z || 0);
+  return m;
+}
+
+// ป้ายข้อความในฉาก (Sprite) ใช้กับชื่อชั้น / ป้ายพื้นที่
+function v3Sprite_(text, o) {
+  o = o || {};
+  const fs = 44, pad = 18;
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  const font = `700 ${fs}px Tahoma, "Noto Sans Thai", "Leelawadee UI", sans-serif`;
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2, h = Math.round(fs * 1.55);
+  c.width = w; c.height = h;
+  ctx.font = font;
+  const r = 14;
+  ctx.fillStyle = o.bg || 'rgba(15,23,42,.82)';
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(w - r, 0); ctx.quadraticCurveTo(w, 0, w, r); ctx.lineTo(w, h - r);
+  ctx.quadraticCurveTo(w, h, w - r, h); ctx.lineTo(r, h); ctx.quadraticCurveTo(0, h, 0, h - r); ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0); ctx.fill();
+  ctx.fillStyle = o.color || '#fff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, pad, h / 2 + 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  const hw = o.h || 1.3;
+  s.scale.set(hw * w / h, hw, 1);
+  return s;
+}
+
+// ข้อความพิมพ์บนพื้น (ไม่ลอยบังวิวเวลาซูมเข้าใกล้)
+function v3GroundText_(text, color, width, x, z) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.font = '800 84px Tahoma, "Noto Sans Thai", sans-serif';
+  ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.fillText(text, 512, 68, 1000);
+  const tex = new THREE.CanvasTexture(c);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(width, width / 8),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.07, z);
+  return m;
+}
+
+function v3Tree_(x, z, s) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25 * s, 0.32 * s, 2 * s, 8), v3Mat_('#8b5e34'));
+  trunk.position.y = s; trunk.castShadow = true;
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(1.5 * s, 12, 10), v3Mat_('#16a34a'));
+  crown.position.y = 2.9 * s; crown.castShadow = true;
+  const crown2 = new THREE.Mesh(new THREE.SphereGeometry(1.05 * s, 12, 10), v3Mat_('#22c55e'));
+  crown2.position.set(0.5 * s, 3.6 * s, 0.3 * s); crown2.castShadow = true;
+  g.add(trunk, crown, crown2);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// พื้น / ถนน / ต้นไม้ / ป้ายพื้นที่ (สร้างครั้งเดียว ไม่ขึ้นกับข้อมูล)
+function v3BuildEnv_() {
+  const env = new THREE.Group();
+  // พื้นโปร่งแสงเล็กน้อย เพื่อให้มองเห็นชั้นใต้ดิน (B1/B2) ได้
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(230, 165),
+    v3Mat_('#dfe5ec', { transparent: true, opacity: 0.72, depthWrite: false }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(-18, 0, -4);
+  ground.receiveShadow = true;
+  ground.renderOrder = -2;
+  env.add(ground);
+  const grid = new THREE.GridHelper(230, 46, 0xc3ccd6, 0xd3dae2);
+  grid.position.set(-18, 0.01, -4);
+  grid.material.transparent = true; grid.material.opacity = 0.6;
+  env.add(grid);
+
+  // ลานคอมพาวด์ BITEC BURI
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(132, 46), v3Mat_('#cfd8e3', { transparent: true, opacity: 0.85, depthWrite: false }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(-26, 0.02, -36); pad.renderOrder = -1;
+  env.add(pad);
+  env.add(v3GroundText_('BITEC BURI COMPOUND', '#c2410c', 40, -70, -15.5));
+
+  // ถนนหลักระหว่างกลุ่มอาคาร + เส้นจราจร
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(225, 9), v3Mat_('#8f9aa6'));
+  road.rotation.x = -Math.PI / 2; road.position.set(-18, 0.03, -4); road.receiveShadow = true;
+  env.add(road);
+  const dashMat = v3Mat_('#ffffff');
+  for (let x = -125; x < 90; x += 8) env.add(v3Box_(4, 0.02, 0.35, dashMat, x, 0.05, -4));
+  env.add(v3GroundText_('OFF-BITEC BUILDINGS', '#1d4ed8', 40, -70, 9));
+
+  [[-98, -52], [-98, -26], [-60, -18], [-20, -18], [14, -56], [44, -54], [44, -22], [-100, 22], [-100, 46],
+   [-50, 50], [-12, 52], [28, 52], [62, 22], [62, 46], [-5, 18], [-50, 16]].forEach(([x, z], i) => env.add(v3Tree_(x, z, 0.8 + (i % 3) * 0.15)));
+  V3.scene.add(env);
+}
+
+/* ---------------- อ่านข้อมูลจากหลังบ้าน ---------------- */
+function v3Parse_(b) {
+  const rows = (b.tank && b.tank.rows) || [];
+  const out = { items: [] };
+  if (!rows.length) return out;
+  const keys = Object.keys(rows[0]).filter(k => k !== '_row');
+  const f = re => keys.find(k => re.test(String(k).replace(/\s+/g, ' ')));
+  const K = {
+    b: f(/building|อาคาร/i), name: f(/generator no|name|ชื่อ/i),
+    code: keys.find(k => /^code/i.test(k) && !/machine/i.test(k)),
+    full: f(/^full/i), actual: f(/actual/i), rop: f(/rop/i), note: f(/หมายเหตุ|^note/i),
+    kva: f(/kva|power/i), company: f(/company|บริษัท/i)
+  };
+  // ยี่ห้อเครื่องจากทะเบียนเครื่อง (ถ้ามี) — แบบเดียวกับการ์ดหลังบ้าน
+  const brand = {};
+  const gRows = (b.gen && b.gen.rows) || [];
+  if (gRows.length) {
+    const gk = Object.keys(gRows[0]).filter(k => k !== '_row');
+    const gCode = gk.find(k => /^code/i.test(k.trim()) && !/machine/i.test(k));
+    const gBrand = gk.find(k => /^(brand|ยี่ห้อ)\b/i.test(k.trim()));
+    if (gCode && gBrand) gRows.forEach(r => { if (r[gCode]) brand[String(r[gCode]).trim()] = String(r[gBrand] || '').trim(); });
+  }
+  rows.forEach(r => {
+    const name = String((K.name && r[K.name]) || '').replace(/\s*\n\s*/g, ' ').trim();
+    const building = String((K.b && r[K.b]) || '').trim();
+    const isStore = /store\s*tank/i.test(name || building);
+    const code = String((K.code && r[K.code]) || '').trim();
+    const updCode = code || slugCode_(name || building);
+    const key = updCode.toUpperCase();
+    if (!key) return;
+    const full = parseFloat(String((K.full && r[K.full]) || '').replace(/,/g, '')) || 0;
+    const actualRaw = parseFloat(String((K.actual && r[K.actual]) ?? '').replace(/,/g, ''));
+    const note = String((K.note && r[K.note]) || '').trim();
+    const shared = (!full || full <= 0) && !!note;
+    const pct = full > 0 && !isNaN(actualRaw) ? (actualRaw / full) * 100 : null;
+    const st = shared ? 'shared' : (full > 0 ? statusOfPct(pct, isStore) : 'nodata');
+    const m = note.match(/checked\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+    out.items.push({
+      key, code, updCode, name: name || building, building, isStore,
+      company: K.company ? String(r[K.company] || '') : '',
+      isTankOnly: isStore || /stock\s*tank|storage\s*tank/i.test(name),
+      kva: parseFloat(String((K.kva && r[K.kva]) || '').replace(/,/g, '')) || 0,
+      full, actual: isNaN(actualRaw) ? null : actualRaw, pct, st, shared, note,
+      rop: K.rop ? r[K.rop] : '', checked: m ? new Date(+m[3], +m[2] - 1, +m[1]) : null,
+      brand: brand[code] || '', bId: v3BuildingIdOf_(building, isStore)
+    });
+  });
+  // เครื่องที่ใช้ถังร่วม -> หาถังจริงที่อ้างถึงในหมายเหตุ (เช่น "ใช้ถังร่วมกับ GEN-03" / "ใช้ถังเดียว Gen 02")
+  out.items.forEach(it => {
+    if (!it.shared) return;
+    const nums = [...it.note.matchAll(/gen\s*-?\s*(\d+)/gi)].map(m => parseInt(m[1], 10));
+    const sameB = out.items.filter(o => o !== it && o.bId === it.bId && o.full > 0 && !o.isStore);
+    let link = null;
+    for (const n of nums) {
+      link = sameB.find(o => new RegExp('GEN-0*' + n + '$', 'i').test(o.code));
+      if (link) break;
+    }
+    it.linkKey = (link || sameB[0] || {}).key || null;
+  });
+  return out;
+}
+
+function v3BuildingIdOf_(building, isStore) {
+  if (isStore) return 'storage';
+  const b = String(building || '').trim().toUpperCase();
+  const hit = V3_BUILDINGS.find(B => B.match.some(m => m.toUpperCase() === b));
+  return hit ? hit.id : null;
+}
+
+// สีของเหลวในถัง = สีเดียวกับการ์ดหลังบ้าน (แดง/ส้ม/เขียว/ฟ้า)
+function v3StColor_(it) {
+  if (!it) return '#94a3b8';
+  if (it.st === 'shared') return v3StColor_(V3.data && V3.data.items.find(o => o.key === it.linkKey));
+  if (it.st === 'nodata') return '#94a3b8';
+  if (it.st === 'critical') return '#f85149';
+  if (it.st === 'warn') return '#ff8c00';
+  return it.pct !== null && it.pct >= 90 ? '#2563eb' : '#22c55e';
+}
+function v3EffSt_(it) {
+  if (it && it.st === 'shared' && V3.data) {
+    const l = V3.data.items.find(o => o.key === it.linkKey);
+    return l ? l.st : 'ok';
+  }
+  return it ? it.st : 'nodata';
+}
+
+/* ---------------- ดึงข้อมูล / อัปเดตฉาก ---------------- */
+function v3Refresh_(first) {
+  const sync = document.getElementById('v3Sync');
+  if (first && !V3.data) v3SetLoading_('กำลังดึงข้อมูลจากหลังบ้าน...');
+  if (sync) { sync.textContent = 'กำลังซิงก์...'; sync.classList.remove('err'); }
+  return callApi('getDashboardBundle', {}).then(b => {
+    if (!b || !b.ok) throw new Error((b && b.error) || 'โหลดข้อมูลไม่สำเร็จ');
+    const data = v3Parse_(b);
+    V3.data = data;
+    V3.syncAt = new Date();
+    const sig = data.items.map(i => i.key + '@' + i.bId).sort().join('|');
+    const firstBuild = !V3.keySig;
+    if (sig !== V3.keySig) { v3BuildWorld_(data); V3.keySig = sig; }
+    v3UpdateItems_();
+    if (firstBuild) v3Focus_(V3.focus); else v3RenderUi_();
+    v3SetLoading_('');
+    if (sync) sync.textContent = '✓ ซิงก์แล้ว ' + V3.syncAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' · อัปเดตอัตโนมัติทุก 60 วิ';
+  }).catch(err => {
+    if (!V3.data) v3SetLoading_('⚠️ ' + escHtml(err.message || String(err)) + '<br><button class="v3-btn" onclick="v3Refresh_(true)">ลองใหม่</button> <button class="v3-btn ghost" onclick="close3DView()">กลับหลังบ้าน</button>');
+    if (sync) { sync.textContent = '✕ ซิงก์ไม่สำเร็จ: ' + (err.message || err); sync.classList.add('err'); }
+  });
+}
+
+function v3Dispose_(obj) {
+  obj.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+  });
+}
+
+function v3BuildWorld_(data) {
+  if (V3.world) { V3.scene.remove(V3.world); v3Dispose_(V3.world); }
+  V3.world = new THREE.Group();
+  V3.scene.add(V3.world);
+  V3.items = {}; V3.bld = {}; V3.pickEquip = []; V3.pickBld = []; V3.labels = [];
+  document.getElementById('v3Labels').innerHTML = '';
+
+  const visible = new Set(data.items.map(i => i.bId).filter(Boolean));
+  V3_BUILDINGS.forEach(B => { if (visible.has(B.id)) v3BuildBuilding_(B); });
+  if (V3.focus !== 'all' && !visible.has(V3.focus)) V3.focus = 'all';
+
+  // จัดกลุ่มเครื่องตามตำแหน่งวาง แล้วเรียงตามช่อง (slot) ก่อนวางลงฉาก
+  const groups = {};
+  data.items.forEach(it => {
+    if (!it.bId || !V3.bld[it.bId]) return;
+    const B = V3.bld[it.bId].spec;
+    let p = V3_PLACE[it.key];
+    if (p && p.b !== it.bId) p = null;
+    if (!p) {
+      if (it.isStore) p = { b: 'storage', zone: 'storage', slot: 99, loc: 'ถังสำรองส่วนกลาง' };
+      else {
+        const blk = B.blocks[0];
+        const g = blk ? (blk.floors.indexOf('G') >= 0 ? 'G' : blk.floors[0]) : '';
+        p = { b: it.bId, blk: blk && blk.id, floor: g, slot: 99, loc: 'ชั้น ' + g + ' (วางอัตโนมัติ — ยังไม่ได้กำหนดตำแหน่งจริง)' };
+      }
+    }
+    it.place = p;
+    const gk = [p.b, p.zone || p.blk, p.floor || ''].join('|');
+    (groups[gk] = groups[gk] || []).push(it);
+  });
+  Object.values(groups).forEach(list => {
+    list.sort((a, b) => (a.place.slot - b.place.slot) || a.key.localeCompare(b.key));
+    list.forEach((it, i) => v3PlaceItem_(it, i, list.length));
+  });
+  // เส้นท่อ (ประ) จากเครื่องที่ใช้ถังร่วมไปยังถังจริง
+  data.items.forEach(it => {
+    if (!it.shared || !it.linkKey || !V3.items[it.key] || !V3.items[it.linkKey]) return;
+    const a = V3.items[it.key].pipeFrom, bb = V3.items[it.linkKey].pipeTo;
+    if (!a || !bb) return;
+    const mid = a.clone().lerp(bb, 0.5); mid.y = Math.max(a.y, bb.y) + 1.2;
+    const geo = new THREE.BufferGeometry().setFromPoints([a, new THREE.Vector3(a.x, mid.y, a.z), new THREE.Vector3(bb.x, mid.y, bb.z), bb]);
+    const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: 0x7c3aed, dashSize: 0.5, gapSize: 0.3 }));
+    line.computeLineDistances();
+    V3.world.add(line);
+  });
+  v3ApplyDim_();
+}
+
+function v3FloorY_(blk, floor) {
+  const g = Math.max(0, blk.floors.indexOf('G'));
+  const i = blk.floors.indexOf(floor);
+  return ((i < 0 ? g : i) - g) * V3_FH;
+}
+
+function v3BuildBuilding_(B) {
+  const grp = new THREE.Group();
+  grp.position.set(B.x, 0, B.z);
+  V3.world.add(grp);
+  const rec = { spec: B, group: grp, mats: [], top: 6, center: new THREE.Vector3(B.x, 4, B.z), extent: 20 };
+  V3.bld[B.id] = rec;
+  const genFloors = {};
+  Object.values(V3_PLACE).forEach(p => { if (p.b === B.id && p.blk) genFloors[p.blk + '|' + p.floor] = p.room || 'ห้อง GEN'; });
+
+  let maxTop = 0, minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+  B.blocks.forEach(blk => {
+    const g = Math.max(0, blk.floors.indexOf('G'));
+    const top = (blk.floors.length - g) * V3_FH, bottom = -g * V3_FH;
+    const H = top - bottom;
+    const bx = blk.ox, bz = blk.oz;
+    maxTop = Math.max(maxTop, top);
+    minX = Math.min(minX, bx - blk.w / 2); maxX = Math.max(maxX, bx + blk.w / 2);
+    minZ = Math.min(minZ, bz - blk.d / 2); maxZ = Math.max(maxZ, bz + blk.d / 2);
+
+    // ผนังกระจกโปร่งใส
+    const glassMat = v3Mat_('#93c5fd', { transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, roughness: 0.1, metalness: 0.2 });
+    glassMat.userData.base = 0.1;
+    const glass = v3Box_(blk.w, H, blk.d, glassMat, bx, bottom + H / 2, bz);
+    glass.renderOrder = 2;
+    glass.userData.pick = { type: 'bld', id: B.id };
+    grp.add(glass); V3.pickBld.push(glass); rec.mats.push(glassMat);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x475569, transparent: true, opacity: 0.55 });
+    edgeMat.userData.base = 0.55;
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(glass.geometry), edgeMat);
+    edges.position.copy(glass.position);
+    grp.add(edges); rec.mats.push(edgeMat);
+
+    // เสามุมอาคาร
+    const colMat = v3Mat_('#94a3b8');
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+      const c = v3Box_(0.45, H, 0.45, colMat, bx + sx * (blk.w / 2 - 0.25), bottom + H / 2, bz + sz * (blk.d / 2 - 0.25));
+      c.castShadow = true; grp.add(c);
+    });
+    // พื้นแต่ละชั้น (ชั้นห้องเครื่องเป็นสีส้ม)
+    for (let i = 0; i <= blk.floors.length; i++) {
+      const y = (i - g) * V3_FH;
+      const label = blk.floors[i];
+      const isGen = label && genFloors[blk.id + '|' + label];
+      const sm = v3Mat_(isGen ? '#fdba74' : '#cbd5e1', { transparent: true, opacity: isGen ? 0.6 : 0.3, depthWrite: false });
+      sm.userData.base = sm.opacity;
+      const slab = v3Box_(blk.w - 0.2, 0.18, blk.d - 0.2, sm, bx, y, bz);
+      slab.renderOrder = 1;
+      grp.add(slab); rec.mats.push(sm);
+      if (isGen || label === 'G' || (label && label[0] === 'B') || (label && i === blk.floors.length - 1 && blk.floors.length > 6)) {
+        const sp = v3Sprite_(isGen ? 'ชั้น ' + label + ' · ' + isGen : 'ชั้น ' + label,
+          { bg: isGen ? 'rgba(234,88,12,.92)' : 'rgba(71,85,105,.75)', h: isGen ? 1.1 : 0.85 });
+        sp.position.set(bx - blk.w / 2 - (isGen ? 3.2 : 2.2), y + 0.9, bz + blk.d / 2);
+        grp.add(sp);
+      }
+    }
+    if (blk.label) {
+      const sp = v3Sprite_(blk.label, { bg: 'rgba(30,41,59,.8)', h: 0.95 });
+      sp.position.set(bx, top + 1, bz + blk.d / 2);
+      grp.add(sp);
+    }
+    // หลุมชั้นใต้ดิน: กรอบเข้มที่ระดับพื้นดิน ให้เห็นว่ามีชั้นใต้ดิน
+    if (g > 0) {
+      const pit = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(blk.w + 0.6, 0.05, blk.d + 0.6)),
+        new THREE.LineBasicMaterial({ color: 0x1e293b }));
+      pit.position.set(bx, 0.05, bz); grp.add(pit);
+    }
+  });
+
+  if (B.substation) {
+    const s = B.substation;
+    const sub = v3Box_(7, 3.6, 5, v3Mat_('#64748b'), s.ox, 1.8, s.oz);
+    sub.castShadow = true; grp.add(sub);
+    const roof = v3Box_(7.4, 0.3, 5.4, v3Mat_('#334155'), s.ox, 3.75, s.oz); grp.add(roof);
+    const sp = v3Sprite_('SUB STATION', { bg: 'rgba(51,65,85,.9)', h: 1 });
+    sp.position.set(s.ox, 5, s.oz); grp.add(sp);
+    const fence = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(22, 1.4, 9)), new THREE.LineBasicMaterial({ color: 0x64748b }));
+    fence.position.set(s.ox + 6.5, 0.7, s.oz); grp.add(fence);
+    minZ = Math.min(minZ, s.oz - 5); maxZ = Math.max(maxZ, s.oz + 5); maxX = Math.max(maxX, s.ox + 17);
+  }
+  if (B.lawn) {
+    const l = B.lawn;
+    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(l.w, l.d), v3Mat_('#86efac'));
+    lawn.rotation.x = -Math.PI / 2; lawn.position.set(l.ox, 0.04, l.oz); lawn.receiveShadow = true;
+    grp.add(lawn);
+    maxZ = Math.max(maxZ, l.oz + l.d / 2);
+  }
+  if (B.storage) {
+    const s = B.storage;
+    const wallMat = v3Mat_('#a8b3bf');
+    grp.add(v3Box_(s.w, 1, 0.4, wallMat, 0, 0.5, -s.d / 2), v3Box_(s.w, 1, 0.4, wallMat, 0, 0.5, s.d / 2),
+            v3Box_(0.4, 1, s.d, wallMat, -s.w / 2, 0.5, 0), v3Box_(0.4, 1, s.d, wallMat, s.w / 2, 0.5, 0));
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.d), v3Mat_('#b8c2cc'));
+    fl.rotation.x = -Math.PI / 2; fl.position.y = 0.04; fl.receiveShadow = true; grp.add(fl);
+    grp.add(v3Truck_(0, s.d / 2 + 4.5));
+    minX = -s.w / 2; maxX = s.w / 2; minZ = -s.d / 2; maxZ = s.d / 2 + 7; maxTop = 9;
+  }
+  const hasRealLocalTank = V3.data && V3.data.items.some(i => i.bId === B.id && i.isTankOnly && !i.isStore);
+  if (B.placeholderTank && !hasRealLocalTank) {
+    const p = B.placeholderTank;
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 3.4, 28),
+      v3Mat_('#cbd5e1', { transparent: true, opacity: 0.55 }));
+    shell.position.set(p.ox, 1.7, p.oz); shell.castShadow = true;
+    shell.userData.pick = { type: 'ph', id: B.id, label: p.label };
+    grp.add(shell); V3.pickEquip.push(shell);
+    const sp = v3Sprite_('Storage Tank · ไม่มีข้อมูล', { bg: 'rgba(100,116,139,.9)', h: 0.8 });
+    sp.position.set(p.ox, 4.2, p.oz); grp.add(sp);
+    maxZ = Math.max(maxZ, p.oz + 2);
+  }
+
+  rec.top = maxTop;
+  rec.center = new THREE.Vector3(B.x + (minX + maxX) / 2, 0, B.z + (minZ + maxZ) / 2);
+  rec.extent = Math.max(maxX - minX, maxZ - minZ, maxTop * 0.8);
+  // ป้ายชื่ออาคาร (HTML) ลอยเหนือหลังคา
+  const el = document.createElement('div');
+  el.className = 'v3-pill';
+  el.onclick = () => v3Focus_(B.id);
+  document.getElementById('v3Labels').appendChild(el);
+  rec.pill = el;
+  V3.labels.push({ el, pos: new THREE.Vector3(rec.center.x, maxTop + 2.2, rec.center.z), kind: 'bld', id: B.id });
+}
+
+// รถบรรทุกน้ำมัน (ตกแต่งลานถังสำรอง)
+function v3Truck_(x, z) {
+  const g = new THREE.Group();
+  const cab = v3Box_(2.2, 2, 2.3, v3Mat_('#ff8c00'), -3.2, 1.5, 0);
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 5, 20), v3Mat_('#e2e8f0', { metalness: 0.4, roughness: 0.35 }));
+  tank.rotation.z = Math.PI / 2; tank.position.set(0.6, 1.7, 0);
+  const chassis = v3Box_(7.4, 0.35, 2, v3Mat_('#334155'), -0.4, 0.6, 0);
+  g.add(cab, tank, chassis);
+  [-3.2, -0.2, 2.4].forEach(wx => [-1.05, 1.05].forEach(wz => {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 14), v3Mat_('#111827'));
+    w.rotation.x = Math.PI / 2; w.position.set(wx, 0.45, wz); g.add(w);
+  }));
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.position.set(x, 0, z);
+  return g;
+}
+
+/* ---------------- โมเดลเครื่องกำเนิดไฟฟ้า ---------------- */
+function v3MakeGen_(kva, mobile) {
+  const s = 0.6 + 0.6 * Math.sqrt(Math.min(kva || 300, 2000) / 1600);
+  const W = 1.3 * s, H = 1.5 * s, L = 2.6 * s;
+  const lift = mobile ? 0.55 : 0;
+  const g = new THREE.Group();
+  const skid = v3Box_(W * 1.08, 0.18, L * 1.06, v3Mat_('#1f2937'), 0, 0.09 + lift, 0);
+  const bodyMat = v3Mat_('#334155', { emissive: new THREE.Color('#000000') });
+  const body = v3Box_(W, H, L, bodyMat, 0, 0.18 + lift + H / 2, 0);
+  const stripe = v3Box_(W * 1.01, 0.12 * s, L * 1.005, v3Mat_('#ff8c00'), 0, 0.18 + lift + H * 0.78, 0);
+  const grille = v3Box_(W * 0.82, H * 0.72, 0.06, v3Mat_('#0f172a'), 0, 0.18 + lift + H / 2, L / 2 + 0.03);
+  [body, skid].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+  g.add(skid, body, stripe, grille);
+  // พัดลมหม้อน้ำ (หมุนตลอด = เครื่องพร้อมใช้งาน)
+  const fan = new THREE.Group();
+  const bladeMat = v3Mat_('#cbd5e1', { metalness: 0.5, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const bl = v3Box_(0.12 * s, H * 0.6, 0.03, bladeMat);
+    bl.rotation.z = i * Math.PI / 4;
+    fan.add(bl);
+  }
+  fan.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.1 * s, 0.08, 12).rotateX(Math.PI / 2), v3Mat_('#ff8c00')));
+  fan.position.set(0, 0.18 + lift + H / 2, L / 2 + 0.09);
+  g.add(fan);
+  // ท่อไอเสีย + หม้อพักไอเสีย
+  const stackTop = 0.18 + lift + H + 0.9 * s;
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * s, 0.09 * s, 0.9 * s, 10), v3Mat_('#475569', { metalness: 0.6 }));
+  pipe.position.set(W * 0.22, 0.18 + lift + H + 0.45 * s, -L * 0.28);
+  const muff = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * s, 0.2 * s, W * 0.7, 12), v3Mat_('#64748b', { metalness: 0.6 }));
+  muff.rotation.z = Math.PI / 2; muff.position.set(0, 0.18 + lift + H + 0.2 * s, -L * 0.28);
+  g.add(pipe, muff);
+  // ตู้ควบคุม + ไฟ LED
+  const panel = v3Box_(0.08, H * 0.45, L * 0.28, v3Mat_('#e2e8f0'), W / 2 + 0.04, 0.18 + lift + H * 0.6, L * 0.15);
+  const ledMat = v3Mat_('#22c55e', { emissive: new THREE.Color('#22c55e'), emissiveIntensity: 1 });
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.06 * s, 8, 8), ledMat);
+  led.position.set(W / 2 + 0.1, 0.18 + lift + H * 0.72, L * 0.15);
+  g.add(panel, led);
+  // ไฟสถานะ (beacon) บนหลังคาเครื่อง — สีตามสถานะถัง กะพริบเมื่อต้องสั่งเติม
+  const beaconMat = v3Mat_('#22c55e', { emissive: new THREE.Color('#22c55e'), emissiveIntensity: 0.8, transparent: true, opacity: 0.95 });
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.2 * s, 14, 12), beaconMat);
+  beacon.position.set(-W * 0.25, 0.18 + lift + H + 0.2 * s, L * 0.3);
+  g.add(beacon);
+  // ควันไอเสียจางๆ ลอยขึ้น
+  const puffs = [];
+  for (let i = 0; i < 3; i++) {
+    const pm = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.3, depthWrite: false });
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.25 * s, 8, 8), pm);
+    g.add(p); puffs.push({ m: p, ph: i / 3 });
+  }
+  if (mobile) {
+    [-1, 1].forEach(sx => [-L * 0.3, L * 0.3].forEach(wz => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 14), v3Mat_('#111827'));
+      w.rotation.z = Math.PI / 2; w.position.set(sx * (W / 2 + 0.1), 0.32, wz); g.add(w);
+    }));
+    g.add(v3Box_(0.12, 0.12, 1.2, v3Mat_('#1f2937'), 0, 0.5, -L / 2 - 0.6));
+  }
+  return { group: g, body, bodyMat, bodyY: body.position.y, fan, beacon, beaconMat, led, ledMat, puffs,
+    stackX: W * 0.22, stackZ: -L * 0.28, stackTop, W, H: 0.18 + lift + H, L, s };
+}
+
+/* ---------------- โมเดลถังน้ำมัน (ระดับน้ำมันตามข้อมูลจริง + แถบสีแบบหลังบ้าน) ---------------- */
+function v3MakeTank_(full, isStore) {
+  const g = new THREE.Group();
+  const cyl = isStore;
+  let w, h, r = 0;
+  if (cyl) { r = 2.6 * Math.cbrt(full / 10000); h = 7.5 * Math.cbrt(full / 10000); w = r * 2; }
+  else {
+    const k = Math.cbrt(Math.max(full, 1) / 1000);
+    w = Math.min(2.2, Math.max(0.55, 0.75 * k)); h = Math.min(3, Math.max(0.6, 1.05 * k));
+  }
+  const shellMat = v3Mat_('#e2edf7', { transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.15, metalness: 0.3, side: THREE.DoubleSide });
+  const shell = cyl ? new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 36), shellMat)
+                    : new THREE.Mesh(new THREE.BoxGeometry(w, h, w), shellMat);
+  shell.position.y = h / 2 + 0.05;
+  shell.renderOrder = 3;
+  g.add(shell);
+  const edgeGeo = cyl ? new THREE.EdgesGeometry(new THREE.CylinderGeometry(r, r, h, 36), 30) : new THREE.EdgesGeometry(shell.geometry);
+  const edges = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x64748b }));
+  edges.position.copy(shell.position); g.add(edges);
+  if (cyl) {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.02, 0.25, 36), v3Mat_('#94a3b8', { metalness: 0.4 }));
+    cap.position.y = h + 0.15; g.add(cap);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.05, r * 1.05, 0.3, 36), v3Mat_('#64748b'));
+    base.position.y = 0.15; g.add(base);
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, h + 1, 6), v3Mat_('#475569'));
+    sp.position.set(r * 0.7, (h + 1) / 2, r * 0.7); g.add(sp);
+  } else {
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => g.add(v3Box_(0.08, 0.1, 0.08, v3Mat_('#334155'), sx * w * 0.42, 0.05, sz * w * 0.42)));
+  }
+  const liqMat = v3Mat_('#22c55e', { emissive: new THREE.Color('#22c55e'), emissiveIntensity: 0.05, roughness: 0.5, metalness: 0 });
+  const liquid = cyl ? new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 36), liqMat) : new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), liqMat);
+  if (cyl) liquid.scale.set(r * 0.95, 0.01, r * 0.95); else liquid.scale.set(w * 0.9, 0.01, w * 0.9);
+  liquid.castShadow = false;
+  g.add(liquid);
+  // แถบเกณฑ์สีข้างถัง (เหมือนแถบเกจหลังบ้าน) + ตัวชี้ระดับปัจจุบัน
+  const zones = isStore ? [[50, '#ff8c00'], [40, '#22c55e'], [10, '#2563eb']]
+                        : [[40, '#f85149'], [10, '#ff8c00'], [40, '#22c55e'], [10, '#2563eb']];
+  const gx = (cyl ? r : w / 2) + 0.18;
+  let acc = 0;
+  zones.forEach(([p, c]) => {
+    const seg = v3Box_(0.14, h * p / 100, 0.14, v3Mat_(c, { emissive: new THREE.Color(c), emissiveIntensity: 0.25 }),
+      gx, 0.05 + h * (acc + p / 2) / 100, 0);
+    g.add(seg); acc += p;
+  });
+  const marker = v3Box_(0.42, 0.07, 0.36, v3Mat_('#0f172a'), gx, 0.05, 0);
+  g.add(marker);
+  // วงแจ้งเตือนกระเพื่อมที่พื้นใต้ถัง (เฉพาะสถานะต้องสั่งเติม)
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xf85149, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry((cyl ? r : w * 0.7) + 0.2, (cyl ? r : w * 0.7) + 0.55, 40), ringMat);
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; ring.visible = false;
+  g.add(ring);
+  shell.castShadow = false;
+  return { group: g, shell, shellMat, liquid, liqMat, marker, ring, ringMat, h, w, r, cyl, cur: 0, tgt: 0, ph: Math.random() * 6 };
+}
+
+function v3PlaceItem_(it, i, n) {
+  const B = V3.bld[it.bId].spec;
+  const p = it.place;
+  let base, genPos, tankPos, mobile = !!p.mobile;
+  if (p.zone === 'substation') {
+    base = new THREE.Vector3(B.x + B.substation.ox + 6 + i * 5.5, 0, B.z + B.substation.oz);
+    genPos = base.clone(); tankPos = base.clone().add(new THREE.Vector3(1.9, 0, 0.6));
+  } else if (p.zone === 'lawn') {
+    base = new THREE.Vector3(B.x + B.lawn.ox + (i - (n - 1) / 2) * 5, 0.04, B.z + B.lawn.oz);
+    genPos = base.clone().add(new THREE.Vector3(-1.1, 0, 0)); tankPos = base.clone().add(new THREE.Vector3(1.6, 0, 0));
+  } else if (p.zone === 'storage') {
+    base = new THREE.Vector3(B.x + (i - (n - 1) / 2) * 10, 0, B.z);
+    tankPos = base.clone();
+  } else {
+    const blk = B.blocks.find(b => b.id === p.blk) || B.blocks[0];
+    const y = v3FloorY_(blk, p.floor) + 0.1;
+    const pitch = Math.min(5.4, (blk.w - 3) / Math.max(n, 1));
+    const x = B.x + blk.ox + (i - (n - 1) / 2) * pitch;
+    const cz = B.z + blk.oz;
+    base = new THREE.Vector3(x, y, cz);
+    if (it.isTankOnly) tankPos = base.clone();
+    else { genPos = new THREE.Vector3(x, y, cz - 1.6); tankPos = new THREE.Vector3(x, y, cz + 2.6); }
+  }
+  const rec = { info: it, gen: null, tank: null, ph: Math.random() * 10 };
+  let topY = base.y + 2;
+  if (!it.isTankOnly && genPos) {
+    const gm = v3MakeGen_(it.kva, mobile);
+    gm.group.position.copy(genPos);
+    gm.body.userData.pick = { type: 'item', key: it.key };
+    V3.world.add(gm.group); V3.pickEquip.push(gm.body);
+    rec.gen = gm;
+    topY = Math.max(topY, genPos.y + gm.H + 0.6 * gm.s);
+    rec.pipeFrom = genPos.clone().add(new THREE.Vector3(0, gm.H * 0.5, gm.L / 2));
+  }
+  if (it.full > 0 && tankPos) {
+    const tk = v3MakeTank_(it.full, it.isStore);
+    tk.group.position.copy(tankPos);
+    tk.shell.userData.pick = { type: 'item', key: it.key };
+    V3.world.add(tk.group); V3.pickEquip.push(tk.shell);
+    rec.tank = tk;
+    topY = Math.max(topY, tankPos.y + tk.h + 0.3);
+    rec.pipeTo = tankPos.clone().add(new THREE.Vector3(0, tk.h * 0.5, 0));
+  }
+  // จุดยึดป้าย = กึ่งกลางระหว่างเครื่องกับถัง (ถ้ามีทั้งคู่) ลอยเหนือของที่สูงที่สุด
+  const pA = rec.gen ? genPos : (rec.tank ? tankPos : base);
+  const pB = rec.tank ? tankPos : pA;
+  // หลายเครื่องในแถวเดียว -> ยกป้ายสลับสูง-ต่ำ กันป้ายทับกัน
+  const stagger = n > 2 ? (i % 2) * 1.9 : 0;
+  rec.anchor = new THREE.Vector3((pA.x + pB.x) / 2, topY + 0.6 + stagger, (pA.z + pB.z) / 2);
+  rec.focusPos = new THREE.Vector3(rec.anchor.x, pA.y + 1.2, rec.anchor.z);
+  const el = document.createElement('div');
+  el.className = 'v3-tag';
+  el.onclick = ev => { ev.stopPropagation(); v3Select_(it.key, true); };
+  document.getElementById('v3Labels').appendChild(el);
+  rec.tag = el;
+  V3.labels.push({ el, pos: rec.anchor, kind: 'item', key: it.key });
+  V3.items[it.key] = rec;
+}
+
+// อัปเดตสี/ระดับน้ำมัน/ป้าย ตามข้อมูลล่าสุด (ไม่สร้างฉากใหม่)
+function v3UpdateItems_() {
+  if (!V3.data) return;
+  V3.data.items.forEach(it => {
+    const rec = V3.items[it.key];
+    if (!rec) return;
+    rec.info = it;
+    const col = new THREE.Color(v3StColor_(it));
+    if (rec.tank) {
+      rec.tank.tgt = it.pct === null ? 0 : Math.max(0, Math.min(1, it.pct / 100));
+      rec.tank.liqMat.color.copy(col); rec.tank.liqMat.emissive.copy(col);
+      rec.tank.ring.visible = it.st === 'warn' || it.st === 'critical';
+      rec.tank.ringMat.color.set(it.st === 'critical' ? '#f85149' : '#ff8c00');
+    }
+    if (rec.gen) { rec.gen.beaconMat.color.copy(col); rec.gen.beaconMat.emissive.copy(col); }
+    rec.tagChip = v3TagHtml_(it, true);
+    rec.tagFull = v3TagHtml_(it, false);
+    rec.tagMid = v3TagHtml_(it, 'mid');
+    rec.crowded = V3.data.items.filter(o => o.bId === it.bId && V3.items[o.key]).length > 4;
+  });
+  Object.keys(V3.bld).forEach(id => {
+    const rec = V3.bld[id];
+    const its = V3.data.items.filter(i => i.bId === id);
+    const nGen = its.filter(i => !i.isTankOnly).length;
+    const nAl = its.filter(i => i.st === 'warn' || i.st === 'critical').length;
+    const worst = its.some(i => i.st === 'critical') ? 'critical' : (nAl ? 'warn' : 'ok');
+    rec.pill.className = 'v3-pill st-' + worst;
+    rec.pill.innerHTML = `<span class="v3-dot" style="background:${worst === 'critical' ? '#f85149' : worst === 'warn' ? '#ff8c00' : '#22c55e'}"></span>${escHtml(rec.spec.name)}
+      ${nGen ? `<span class="b">GEN ${nGen}</span>` : `<span class="b">TANK ${its.length}</span>`}${nAl ? `<span class="b al">⚠ ${nAl}</span>` : ''}`;
+  });
+}
+
+function v3Fmt_(n) { return n === null || n === undefined || isNaN(n) ? '-' : Math.round(n).toLocaleString(); }
+
+function v3TagHtml_(it, chip) {
+  const c = v3StColor_(it);
+  const pctTxt = it.pct === null ? (it.st === 'shared' ? '🔗' : '–') : Math.round(it.pct) + '%';
+  if (chip === 'mid') {
+    const short = escHtml(it.name.split(/\s*_/)[0]);
+    if (!(it.full > 0)) return `<b>${short}</b> ${it.st === 'shared' ? '🔗' : '–'}`;
+    return `<b>${short}</b> <b style="color:${c}">${pctTxt}</b><div class="bar"><i style="width:${Math.max(0, Math.min(100, it.pct || 0))}%"></i></div>`;
+  }
+  if (chip) return pctTxt;
+  const kva = it.kva && !/kva/i.test(it.name) ? ` · <span class="kv">${v3Fmt_(it.kva)} kVA</span>` : '';
+  if (it.st === 'shared') return `<b>${escHtml(it.name)}</b>${kva}<br>🔗 ใช้ถังร่วม${it.linkKey ? ' → ' + escHtml(it.linkKey) : ''}`;
+  if (!(it.full > 0)) return `<b>${escHtml(it.name)}</b>${kva}<br>ไม่มีข้อมูลความจุถัง`;
+  return `<b>${escHtml(it.name)}</b>${kva}<div class="bar"><i style="width:${Math.max(0, Math.min(100, it.pct || 0))}%"></i></div>${v3Fmt_(it.actual)} / ${v3Fmt_(it.full)} L · <b style="color:${c}">${pctTxt}</b>`;
+}
+
+/* ---------------- กล้อง / โฟกัส / เลือก ---------------- */
+function v3SetCam_(target, dir, dist) {
+  const t = new THREE.Vector3().fromArray(target);
+  const d = new THREE.Vector3().fromArray(dir).normalize().multiplyScalar(dist);
+  V3.controls.target.copy(t);
+  V3.camera.position.copy(t).add(d);
+  V3.controls.update();
+}
+function v3FlyTo_(target, dist, dir) {
+  const d = (dir ? new THREE.Vector3().fromArray(dir) : V3.camera.position.clone().sub(V3.controls.target)).normalize();
+  if (d.y < 0.35) { d.y = 0.35; d.normalize(); }
+  V3.anim = { fp: V3.camera.position.clone(), tp: target.clone().add(d.multiplyScalar(dist)),
+              ft: V3.controls.target.clone(), tt: target.clone(), t: 0, dur: 0.9 };
+}
+
+// มุมมองภาพรวม = ครอบเฉพาะอาคารที่ผู้ใช้คนนี้มีสิทธิ์เห็น (ผู้ใช้อาคารเดียวจะไม่เห็นพื้นที่ว่างทั้งแคมปัส)
+function v3HomeFrame_() {
+  const ids = Object.keys(V3.bld);
+  if (!ids.length) return { t: V3_HOME.target, d: V3_HOME.dist };
+  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+  ids.forEach(id => {
+    const r = V3.bld[id], e = r.extent / 2 + 4;
+    minX = Math.min(minX, r.center.x - e); maxX = Math.max(maxX, r.center.x + e);
+    minZ = Math.min(minZ, r.center.z - e); maxZ = Math.max(maxZ, r.center.z + e);
+  });
+  const span = Math.max(maxX - minX, (maxZ - minZ) * 1.5);
+  return { t: [(minX + maxX) / 2, 4, (minZ + maxZ) / 2], d: Math.max(55, span * 0.92 + 18) };
+}
+
+function v3Focus_(id) {
+  if (!V3.ready) return;
+  V3.focus = id;
+  V3.sel = null;
+  if (id === 'all' || !V3.bld[id]) {
+    V3.focus = 'all';
+    const h = v3HomeFrame_();
+    v3FlyTo_(new THREE.Vector3().fromArray(h.t), h.d, V3_HOME.dir);
+  } else {
+    const rec = V3.bld[id];
+    const its = (V3.data ? V3.data.items : []).filter(i => i.bId === id && V3.items[i.key]);
+    const ys = its.map(i => V3.items[i.key].focusPos.y);
+    const ty = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : 4;
+    v3FlyTo_(new THREE.Vector3(rec.center.x, ty, rec.center.z), rec.extent * 1.25 + 16, [0.35, 0.62, 1]);
+  }
+  v3ApplyDim_();
+  v3RenderUi_();
+}
+
+function v3Select_(key, fly) {
+  const rec = V3.items[key];
+  if (!rec) return;
+  V3.sel = key;
+  if (rec.info.bId && V3.focus !== rec.info.bId) V3.focus = rec.info.bId;
+  if (fly !== false) v3FlyTo_(rec.focusPos, rec.info.isStore ? 26 : 14, null);
+  v3ApplyDim_();
+  v3RenderUi_();
+  setTimeout(() => {
+    const card = document.getElementById('v3card_' + cssId(key));
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+
+function v3ApplyDim_() {
+  const g = V3.solidGlass ? 3.2 : 1;
+  Object.keys(V3.bld).forEach(id => {
+    const k = V3.focus === 'all' || V3.focus === id ? 1 : 0.35;
+    V3.bld[id].mats.forEach(m => { m.opacity = Math.min(0.9, (m.userData.base || 0.3) * k * (m.isLineBasicMaterial ? 1 : g)); });
+  });
+}
+
+function v3Pick_(e) {
+  const rect = V3.renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(mouse, V3.camera);
+  const hitE = ray.intersectObjects(V3.pickEquip, false)[0];
+  if (hitE) {
+    const p = hitE.object.userData.pick;
+    if (p.type === 'item') return v3Select_(p.key, true);
+    if (p.type === 'ph') { V3.focus = p.id; V3.sel = null; v3RenderUi_(); return; }
+  }
+  const hitB = ray.intersectObjects(V3.pickBld, false)[0];
+  if (hitB) v3Focus_(hitB.object.userData.pick.id);
+}
+
+function v3Zoom_(k) {
+  if (!V3.ready) return;
+  const off = V3.camera.position.clone().sub(V3.controls.target).multiplyScalar(k);
+  const len = Math.min(V3.controls.maxDistance, Math.max(V3.controls.minDistance, off.length()));
+  V3.anim = { fp: V3.camera.position.clone(), tp: V3.controls.target.clone().add(off.setLength(len)),
+              ft: V3.controls.target.clone(), tt: V3.controls.target.clone(), t: 0, dur: 0.35 };
+}
+function v3ToggleRotate_() {
+  if (!V3.ready) return;
+  V3.controls.autoRotate = !V3.controls.autoRotate;
+  document.getElementById('v3RotBtn').classList.toggle('on', V3.controls.autoRotate);
+}
+function v3ToggleTags_() {
+  V3.showTags = !V3.showTags;
+  document.getElementById('v3TagBtn').classList.toggle('on', V3.showTags);
+}
+function v3ToggleGlass_() {
+  V3.solidGlass = !V3.solidGlass;
+  document.getElementById('v3GlassBtn').classList.toggle('on', V3.solidGlass);
+  v3ApplyDim_();
+}
+function v3ToggleSide_() {
+  V3.sideOpen = !V3.sideOpen;
+  document.getElementById('v3Side').classList.toggle('collapsed', !V3.sideOpen);
+  setTimeout(v3Resize_, 30);
+}
+
+// ปุ่ม Update -> ไปฟอร์มบันทึกเชื้อเพลิงหลังบ้าน และเลือกเครื่อง/ถังนี้ให้อัตโนมัติ
+function v3GoUpdate_(code) {
+  close3DView();
+  navigate('fuel');
+  let tries = 0;
+  const tm = setInterval(() => {
+    tries++;
+    const picker = document.getElementById('fuelGenPicker');
+    if (picker && typeof FUEL_GEN_MAP !== 'undefined' && FUEL_GEN_MAP[code]) { clearInterval(tm); openFuelUpdateForCard_(code); }
+    else if (tries > 60) clearInterval(tm);
+  }, 250);
+}
+
+/* ---------------- วนลูปเรนเดอร์ + แอนิเมชัน ---------------- */
+function v3Loop_() {
+  if (!V3.open) return;
+  V3.raf = requestAnimationFrame(v3Loop_);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - (V3.last || now)) / 1000);
+  V3.last = now;
+  const t = (now - V3.t0) / 1000;
+  if (V3.anim) {
+    const a = V3.anim;
+    a.t += dt / a.dur;
+    const k = a.t >= 1 ? 1 : 1 - Math.pow(1 - a.t, 3);
+    V3.camera.position.lerpVectors(a.fp, a.tp, k);
+    V3.controls.target.lerpVectors(a.ft, a.tt, k);
+    if (a.t >= 1) V3.anim = null;
+  }
+  V3.controls.update();
+  Object.keys(V3.items).forEach(key => v3AnimItem_(V3.items[key], t, dt, key === V3.sel));
+  V3.renderer.render(V3.scene, V3.camera);
+  v3PlaceLabels_();
+}
+
+function v3AnimItem_(rec, t, dt, isSel) {
+  const st = v3EffSt_(rec.info);
+  const g = rec.gen;
+  if (g) {
+    g.fan.rotation.z += dt * 9;
+    g.body.position.y = g.bodyY + Math.sin(t * 38 + rec.ph) * 0.006;
+    g.ledMat.emissiveIntensity = Math.sin(t * 4 + rec.ph) > 0 ? 1.2 : 0.15;
+    g.beaconMat.emissiveIntensity = st === 'critical' ? (Math.sin(t * 18) > 0 ? 1.8 : 0.1)
+      : st === 'warn' ? (Math.sin(t * 6) > 0 ? 1.4 : 0.15) : 0.55 + 0.3 * Math.sin(t * 2 + rec.ph);
+    g.puffs.forEach(p => {
+      const age = (t * 0.45 + p.ph + rec.ph) % 1;
+      p.m.position.set(g.stackX + Math.sin(age * 3 + rec.ph) * 0.15, g.stackTop + age * 2.4, g.stackZ);
+      p.m.scale.setScalar(0.5 + age * 1.6);
+      p.m.material.opacity = 0.28 * (1 - age);
+    });
+    g.bodyMat.emissive.set(isSel ? '#ff8c00' : '#000000');
+    g.bodyMat.emissiveIntensity = isSel ? 0.35 + 0.25 * Math.sin(t * 5) : 0;
+  }
+  const k = rec.tank;
+  if (k) {
+    k.cur += (k.tgt - k.cur) * Math.min(1, dt * 1.8);
+    const lv = Math.max(0.002, k.cur * (1 + 0.01 * Math.sin(t * 2.2 + k.ph)));
+    const hh = (k.h - 0.04) * lv;
+    k.liquid.scale.y = hh;
+    k.liquid.position.y = 0.07 + hh / 2;
+    k.marker.position.y = 0.05 + k.h * k.cur;
+    if (k.ring.visible) {
+      const sp = st === 'critical' ? 1.4 : 0.6;
+      const f = (t * sp + k.ph) % 1;
+      k.ring.scale.setScalar(1 + f * 0.9);
+      k.ringMat.opacity = 0.65 * (1 - f);
+    }
+    k.shellMat.emissive.set(isSel ? '#ff8c00' : '#000000');
+    k.shellMat.emissiveIntensity = isSel ? 0.4 : 0;
+  }
+}
+
+// ย้ายป้าย HTML ให้ตรงตำแหน่งวัตถุบนจอทุกเฟรม
+function v3PlaceLabels_() {
+  const st = document.getElementById('v3Stage');
+  const W = st.clientWidth, H = st.clientHeight;
+  const v = new THREE.Vector3();
+  const camDist = V3.camera.position.distanceTo(V3.controls.target);
+  V3.labels.forEach(L => {
+    let show = true, mode = '';
+    if (L.kind === 'bld') {
+      L.el.classList.toggle('dim', V3.focus !== 'all' && V3.focus !== L.id);
+    } else {
+      const rec = V3.items[L.key];
+      const inFocus = V3.focus !== 'all' && rec.info.bId === V3.focus;
+      const isSel = V3.sel === L.key;
+      if (isSel) mode = 'full';
+      else if (V3.showTags && inFocus && rec.crowded && camDist > 22) mode = 'mid';
+      else if (V3.showTags && (inFocus || (V3.focus === 'all' && camDist < 60))) mode = 'full';
+      else if (V3.showTags && V3.focus === 'all') mode = 'chip';
+      else show = false;
+      if (show && L.mode !== mode + (isSel ? 's' : '')) {
+        L.mode = mode + (isSel ? 's' : '');
+        L.el.innerHTML = mode === 'chip' ? rec.tagChip : mode === 'mid' ? rec.tagMid : rec.tagFull;
+        const est = v3EffSt_(rec.info);
+        L.el.className = 'v3-tag' + (mode === 'chip' ? ' chip' : '') + (mode === 'mid' ? ' mid' : '') + (isSel ? ' sel' : '') +
+          ((rec.info.st === 'warn' || rec.info.st === 'critical') ? ' st-' + rec.info.st : '');
+        L.el.style.setProperty('--c', v3StColor_(rec.info));
+        if (est === 'nodata') L.el.style.setProperty('--c', '#94a3b8');
+      }
+    }
+    if (show) {
+      v.copy(L.pos).project(V3.camera);
+      if (v.z > 1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.2) show = false;
+    }
+    if (!show) { if (L.el.style.display !== 'none') L.el.style.display = 'none'; return; }
+    if (L.el.style.display === 'none') L.el.style.display = '';
+    const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
+    L.el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`;
+  });
+}
+
+/* ---------------- แท็บ / KPI / แผงด้านขวา ---------------- */
+function v3RenderUi_() {
+  if (!V3.data) return;
+  // ข้อมูลเปลี่ยน -> บังคับให้ป้ายสร้าง innerHTML ใหม่
+  V3.labels.forEach(L => { L.mode = null; });
+  v3RenderTabs_();
+  v3RenderKpis_();
+  v3RenderSide_();
+  const crumb = document.getElementById('v3Crumb');
+  if (crumb) crumb.textContent = 'GENERATOR · DAY TANK · STORAGE TANK  ›  ' +
+    (V3.focus === 'all' ? 'ภาพรวมทุกอาคาร' : (V3.bld[V3.focus] ? V3.bld[V3.focus].spec.name : ''));
+}
+
+function v3WorstSt_(items) {
+  if (items.some(i => i.st === 'critical')) return 'critical';
+  if (items.some(i => i.st === 'warn')) return 'warn';
+  return 'ok';
+}
+const V3_DOT = { critical: '#f85149', warn: '#ff8c00', ok: '#22c55e' };
+
+function v3RenderTabs_() {
+  const items = V3.data.items;
+  let html = `<button class="v3-tab ${V3.focus === 'all' ? 'active' : ''}" onclick="v3Focus_('all')">🏢 ภาพรวมทุกอาคาร</button>`;
+  V3_BUILDINGS.forEach(B => {
+    if (!V3.bld[B.id]) return;
+    const st = v3WorstSt_(items.filter(i => i.bId === B.id));
+    html += `<button class="v3-tab ${V3.focus === B.id ? 'active' : ''}" onclick="v3Focus_('${B.id}')">
+      <span class="v3-dot" style="background:${V3_DOT[st]}"></span>${escHtml(B.tab)}</button>`;
+  });
+  document.getElementById('v3Tabs').innerHTML = html;
+}
+
+function v3RenderKpis_() {
+  const all = V3.data.items;
+  const scope = V3.focus === 'all' ? all : all.filter(i => i.bId === V3.focus);
+  const gens = scope.filter(i => !i.isTankOnly);
+  const kva = gens.reduce((a, i) => a + (i.kva || 0), 0);
+  const day = scope.filter(i => !i.isStore && i.full > 0);
+  const dA = day.reduce((a, i) => a + (i.actual || 0), 0), dF = day.reduce((a, i) => a + i.full, 0);
+  const store = all.filter(i => i.isStore && i.full > 0);
+  const sA = store.reduce((a, i) => a + (i.actual || 0), 0), sF = store.reduce((a, i) => a + i.full, 0);
+  const crit = scope.filter(i => i.st === 'critical').length, warn = scope.filter(i => i.st === 'warn').length;
+  const shared = scope.filter(i => i.st === 'shared').length;
+  const chk = scope.filter(i => i.checked).sort((a, b) => b.checked - a.checked)[0];
+  const dPct = dF ? dA / dF * 100 : null, sPct = sF ? sA / sF * 100 : null;
+  const pc = (p, isStore) => p === null ? '#64748b' : v3StColor_({ st: statusOfPct(p, isStore), pct: p });
+  const card = (l, v, s, c) => `<div class="v3-kpi" style="--c:${c}"><div class="v3-kpi-l">${l}</div><div class="v3-kpi-v">${v}</div><div class="v3-kpi-s">${s}</div></div>`;
+  let daysAgo = '';
+  if (chk) { const d = Math.floor((Date.now() - chk.checked.getTime()) / 86400000); daysAgo = d <= 0 ? 'วันนี้' : d + ' วันที่แล้ว'; }
+  document.getElementById('v3Kpis').innerHTML =
+    card('เครื่องกำเนิดไฟฟ้า', gens.length + ' เครื่อง', 'รวม ' + v3Fmt_(kva) + ' kVA', '#ff8c00') +
+    card('น้ำมันใน Day Tank', dPct === null ? '-' : dPct.toFixed(0) + '%', v3Fmt_(dA) + ' / ' + v3Fmt_(dF) + ' L', pc(dPct, false)) +
+    card('Storage Tank (ส่วนกลาง)', sPct === null ? '-' : sPct.toFixed(0) + '%', v3Fmt_(sA) + ' / ' + v3Fmt_(sF) + ' L', pc(sPct, true)) +
+    card('ต้องสั่งเติม', (crit + warn) + ' รายการ', (crit + warn) ? '🔴 ด่วนที่สุด ' + crit + ' · 🟠 ต้องสั่งเติม ' + warn : 'ทุกถังอยู่ในเกณฑ์ปกติ', (crit + warn) ? '#f85149' : '#22c55e') +
+    card('ใช้ถังร่วม', shared + ' เครื่อง', 'เครื่องที่ไม่มีถังของตัวเอง', '#7c3aed') +
+    card('ตรวจสอบล่าสุด', chk ? chk.checked.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-',
+      chk ? escHtml(chk.name) + ' · ' + daysAgo : 'ไม่พบวันที่ Checked ในหมายเหตุ', '#2563eb');
+}
+
+function v3GaugeHtml_(it) {
+  if (!(it.full > 0)) return '';
+  const zones = it.isStore ? [[50, '#ff8c00'], [40, '#22c55e'], [10, '#2563eb']]
+                           : [[40, '#f85149'], [10, '#ff8c00'], [40, '#22c55e'], [10, '#2563eb']];
+  const p = Math.max(0, Math.min(100, it.pct || 0));
+  return `<div class="v3-gauge">${zones.map(([w, c]) => `<span style="width:${w}%;background:${c}"></span>`).join('')}<em style="left:${p}%"></em></div>`;
+}
+
+function v3CardHtml_(it) {
+  const sel = V3.sel === it.key;
+  const loc = it.place ? it.place.loc : '';
+  const sub = [it.code || it.updCode, it.kva ? v3Fmt_(it.kva) + ' kVA' : '', it.brand, loc].filter(Boolean).map(escHtml).join(' · ');
+  const st = it.st;
+  let body = '';
+  if (it.full > 0) {
+    body = v3GaugeHtml_(it) +
+      `<div class="v3-nums"><span>คงเหลือ <b>${v3Fmt_(it.actual)}</b> L</span><span>เต็ม ${v3Fmt_(it.full)} L</span></div>
+       <div class="v3-nums"><span>ROP: ${escHtml(String(it.rop ?? ''))}</span><span><b style="color:${v3StColor_(it)}">${it.pct === null ? '-' : it.pct.toFixed(0) + '%'}</b></span></div>`;
+    if (st === 'warn' || st === 'critical') {
+      const need = Math.max(0, it.full * 0.9 - (it.actual || 0));
+      body += `<div class="v3-nums" style="color:#dc2626"><span>ต้องเติมประมาณ ${v3Fmt_(need)} L ให้ถึง 90%</span></div>`;
+    }
+  }
+  const note = it.note ? `<div class="v3-note">📌 ${escHtml(it.note)}</div>` : '';
+  const canUpd = it.full > 0 || it.isStore;
+  return `<div class="v3-card ${sel ? 'sel' : ''}" id="v3card_${cssId(it.key)}" style="--c:${v3StColor_(it)}" onclick="v3Select_('${escAttr(it.key)}', true)">
+    <div class="v3-card-h"><b>${escHtml(it.name)}</b><span class="v3-badge st-${st}">${V3_STATUS_LABEL[st]}</span></div>
+    <div class="v3-card-sub">${sub}</div>${body}${note}
+    <div class="v3-card-btns">
+      <button class="v3-btn ghost sm" onclick="event.stopPropagation();v3Select_('${escAttr(it.key)}', true)">📍 ดูใน 3D</button>
+      ${canUpd ? `<button class="v3-btn sm" onclick="event.stopPropagation();v3GoUpdate_('${escAttr(it.updCode)}')">✏️ Update</button>` : ''}
+    </div></div>`;
+}
+
+function v3RenderSide_() {
+  const side = document.getElementById('v3Side');
+  const items = V3.data.items;
+  const alerts = items.filter(i => i.st === 'warn' || i.st === 'critical').sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));
+  const alertHtml = list => list.length ? list.map(a => {
+    const need = Math.max(0, a.full * 0.9 - (a.actual || 0));
+    return `<div class="v3-alert st-${a.st}" onclick="v3Select_('${escAttr(a.key)}', true)">
+      <b>${escHtml(a.building)}</b> — ${escHtml(a.name)} <span class="v3-badge st-${a.st}">${a.st === 'critical' ? '🔴 ด่วนที่สุด' : '🟠 ต้องสั่งเติม'}</span>
+      <div style="font-size:11px;margin-top:3px">คงเหลือ ${v3Fmt_(a.actual)} L (${(a.pct || 0).toFixed(0)}%)</div>
+      <div class="need">ต้องเติมประมาณ ${v3Fmt_(need)} L ให้ถึง 90%</div></div>`;
+  }).join('') : '<div class="v3-ok">✓ ทุกถังอยู่ในเกณฑ์ปกติ ไม่มีรายการต้องสั่งเติม</div>';
+
+  if (V3.focus === 'all') {
+    let rows = '';
+    V3_BUILDINGS.forEach(B => {
+      if (!V3.bld[B.id]) return;
+      const its = items.filter(i => i.bId === B.id);
+      const tanks = its.filter(i => i.full > 0);
+      const A = tanks.reduce((a, i) => a + (i.actual || 0), 0), F = tanks.reduce((a, i) => a + i.full, 0);
+      const p = F ? A / F * 100 : null;
+      const st = v3WorstSt_(its);
+      const nAl = its.filter(i => i.st === 'warn' || i.st === 'critical').length;
+      const col = p === null ? '#64748b' : v3StColor_({ st: statusOfPct(p, B.id === 'storage'), pct: p });
+      rows += `<tr class="click" onclick="v3Focus_('${B.id}')"><td><span class="v3-dot" style="background:${V3_DOT[st]}"></span> ${escHtml(B.tab)}</td>
+        <td class="num">${its.filter(i => !i.isTankOnly).length || '-'}</td>
+        <td class="num" style="color:${col};font-weight:700">${p === null ? '-' : p.toFixed(0) + '%'}</td>
+        <td class="num" style="color:${nAl ? '#dc2626' : '#94a3b8'}">${nAl || 0}</td></tr>`;
+    });
+    side.innerHTML = `<div class="v3-side-h">ภาพรวมทุกอาคาร</div>
+      <p class="v3-muted">คลิกอาคารในภาพ 3D หรือในตาราง เพื่อดูเครื่องและถังของอาคารนั้น — ข้อมูลชุดเดียวกับหลังบ้าน (Re-Order Point_Fuel)</p>
+      <table class="v3-tbl"><tr><th>อาคาร</th><th class="num">เครื่อง</th><th class="num">คงเหลือ</th><th class="num">แจ้งเตือน</th></tr>${rows}</table>
+      <div class="v3-side-h2">🔔 แจ้งเตือน (Notice) — ต้องสั่งซื้อเชื้อเพลิง</div>${alertHtml(alerts)}`;
+    return;
+  }
+  const B = V3.bld[V3.focus] ? V3.bld[V3.focus].spec : null;
+  if (!B) return;
+  const its = items.filter(i => i.bId === B.id)
+    .sort((a, b) => ((a.place && a.place.slot) - (b.place && b.place.slot)) || a.key.localeCompare(b.key));
+  const bAlerts = alerts.filter(a => a.bId === B.id);
+  const hasLocal = its.some(i => i.isTankOnly && !i.isStore);
+  const ph = B.placeholderTank && !hasLocal ? `<div class="v3-card" style="--c:#94a3b8;cursor:default"><div class="v3-card-h"><b>${escHtml(B.placeholderTank.title || 'Storage Tank')}</b><span class="v3-badge st-nodata">⚪ ไม่มีข้อมูล</span></div>
+    <div class="v3-card-sub">มีถังจริงตามผังติดตั้ง แต่ยังไม่มีแถวข้อมูลในชีต Re-Order Point_Fuel — เพิ่มแถวในหลังบ้านแล้วจะแสดงระดับน้ำมันอัตโนมัติ</div></div>` : '';
+  side.innerHTML = `<div class="v3-side-h">${escHtml(B.name)}<button class="v3-btn ghost sm" onclick="v3Focus_('all')">← ภาพรวม</button></div>
+    <p class="v3-muted" style="white-space:pre-line">${escHtml(B.info || '')}</p>
+    ${bAlerts.length ? `<div class="v3-side-h2">🔔 แจ้งเตือน</div>${alertHtml(bAlerts)}` : ''}
+    <div class="v3-side-h2">เครื่อง / ถัง (${its.length})</div>${its.map(v3CardHtml_).join('')}${ph}`;
+}
+</script>
+
 </body>
 </html>
